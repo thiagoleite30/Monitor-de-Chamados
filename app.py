@@ -17,8 +17,12 @@ from callTopDesk.callTopDesk import chamados
 from dash_bootstrap_templates import load_figure_template
 load_figure_template("minty")
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MINTY])
+#app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MINTY])
+
+server = Flask(__name__)
+app = dash.Dash(server=server, external_stylesheets=[dbc.themes.MINTY]) # type: ignore
 app.title = 'Monitor de Chamados'
+server = app.server
 
 
 # =================== Layout ================== #
@@ -209,4 +213,4 @@ def render_graphs_chamadosPDias_sem_interacao(data, n_intervals, value):
 
 # ================= Run Server ================= #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8080, host='172.25.11.251')
+    app.run_server(debug=False, port=8080, host='0.0.0.0')
