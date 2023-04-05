@@ -4,9 +4,10 @@ import pandas as pd
 import numpy as np
 import jmespath
 from datetime import timezone
-import datetime
+import datetime as dt
 import pytz
 import time
+import swifter
 
 
 # Conectando com a API do TopDesk
@@ -15,7 +16,8 @@ class chamados:
     def __init__(self, topdesk_url, operador, chave):
         self._topdesk_url = topdesk_url
         self._operador = operador
-        self._chave = base64.b64encode((self._operador + ':' + chave).encode('utf-8')).decode('utf-8')
+        self._chave = base64.b64encode(
+            (self._operador + ':' + chave).encode('utf-8')).decode('utf-8')
         self._header = {'Authorization': 'Basic {}'.format(self._chave)}
 
     # Retorna chamados abertos
@@ -43,7 +45,7 @@ class chamados:
                 self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header)
         elif requests.get(self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header).status_code == 404:
             return '404: Não encontrado', requests.get(self._topdesk_url + '/incidents' + incrementoBusca,
-                                                       headers=self._header)
+                                                        headers=self._header)
         elif requests.get(self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header).status_code == 500:
             return '500: Erro do Servidor Interno', requests.get(self._topdesk_url + '/incidents' + incrementoBusca,
                                                                  headers=self._header)
@@ -71,42 +73,49 @@ class chamados:
         GRUPO_OPERADOR: operatorGroup.name,
         OPERADOR: operator.name,
         FORNECEDOR: supplier.name,
-        STATUS: processingStatus.name
+        STATUS: processingStatus.name,
+        ACOES: action
         }
         """
         list_expression = []
         for i in self.chamadosSLACorrente().json():
             list_expression.append(jmespath.compile(expression).search(i))
 
-        #Inserindo list no Data Frame
-        df_chamados = pd.DataFrame(list_expression, columns=['NUMERO_CHAMADO','NIVEL','TIPO_CHAMADO',
-                                                     'SOLICITANTE','CATEGORIA',
-                                                     'SUBCATEGORIA','DATA_ABERTURA',
-                                                    'DATA_ALVO','GRUPO_OPERADOR',
-                                                    'OPERADOR','FORNECEDOR',
-                                                    'STATUS'])
+        # Inserindo list no Data Frame
+        df_chamados = pd.DataFrame(list_expression, columns=['NUMERO_CHAMADO', 'NIVEL', 'TIPO_CHAMADO',
+                                                             'SOLICITANTE', 'CATEGORIA',
+                                                             'SUBCATEGORIA', 'DATA_ABERTURA',
+                                                             'DATA_ALVO', 'GRUPO_OPERADOR',
+                                                             'OPERADOR', 'FORNECEDOR',
+                                                             'STATUS', 'ACOES'])
 
-        #Convertendo o fuso horário dos campos que contém datas
-        df_chamados['DATA_ABERTURA'] = pd.to_datetime(df_chamados['DATA_ABERTURA']).dt.tz_convert('America/Sao_Paulo')
-        df_chamados['DATA_ALVO'] = pd.to_datetime(df_chamados['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
+        # Convertendo o fuso horário dos campos que contém datas
+        df_chamados['DATA_ABERTURA'] = pd.to_datetime(
+            df_chamados['DATA_ABERTURA']).dt.tz_convert('America/Sao_Paulo')
+        df_chamados['DATA_ALVO'] = pd.to_datetime(
+            df_chamados['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
 
-        #Alterando nomenclatura para os níveis de chamado
-        df_chamados['NIVEL'].replace('firstLine', 'Primeiro Nivel', inplace=True)
-        df_chamados['NIVEL'].replace('secondLine', 'Segundo Nivel', inplace=True)
+        # Alterando nomenclatura para os níveis de chamado
+        df_chamados['NIVEL'].replace(
+            'firstLine', 'Primeiro Nivel', inplace=True)
+        df_chamados['NIVEL'].replace(
+            'secondLine', 'Segundo Nivel', inplace=True)
 
-        #Muda os valores None na coluna Fornecedores para NaN
-        df_chamados['FORNECEDOR'] = df_chamados['FORNECEDOR'].fillna(value=np.nan)
+        # Muda os valores None na coluna Fornecedores para NaN
+        df_chamados['FORNECEDOR'] = df_chamados['FORNECEDOR'].fillna(
+            value=np.nan)
 
-        #Cria coluna que receberá o tempo restante para o chamado estourar
+        # Cria coluna que receberá o tempo restante para o chamado estourar
         df_chamados['TEMPO_RESTANTE'] = np.nan
         df_chamados = df_chamados[['NUMERO_CHAMADO', 'NIVEL', 'TIPO_CHAMADO', 'SOLICITANTE', 'CATEGORIA',
                                    'SUBCATEGORIA', 'DATA_ABERTURA', 'DATA_ALVO', 'TEMPO_RESTANTE', 'GRUPO_OPERADOR',
-                                   'OPERADOR', 'FORNECEDOR', 'STATUS']]
+                                   'OPERADOR', 'FORNECEDOR', 'STATUS', 'ACOES']]
 
-        dt_data_now = datetime.datetime.fromtimestamp(time.time())
+        dt_data_now = dt.datetime.fromtimestamp(time.time())
         for idx in df_chamados.iterrows():
             # print(idx[1]['NUMERO_CHAMADO'])
-            dt_data_alvo = datetime.datetime.fromtimestamp(idx[1]['DATA_ALVO'].timestamp())
+            dt_data_alvo = dt.datetime.fromtimestamp(
+                idx[1]['DATA_ALVO'].timestamp())
             diff_seconds = (dt_data_alvo - dt_data_now).total_seconds()
             idx[1]['TEMPO_RESTANTE'] = int(diff_seconds / 3600)
             df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = int(
@@ -121,9 +130,61 @@ class chamados:
                             (df_chamados['STATUS'] != 'Pendente análise do problema') & (df_chamados['STATUS'] != 'Pendente análise do problema') &
                             (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização'))].sort_values(by='TEMPO_RESTANTE')
 
-    def filtroChamadosAbertosCategoria(self, categoria=None):
-        df_chamados = self.chamadosSLACorrenteDataFrame()
-        if categoria == None:
-            return df_chamados
+    # Percorre ações na coluna ações
+    def percorre_acoes(self, response):
+        for i in range(len(response.json())):
+            if (response.json()[i]['invisibleForCaller'] == False) and (response.json()[i]['operator'] != None):
+                # print(response.json()[i]['creationDate'])
+                return pd.to_datetime(response.json()[i]['creationDate']).tz_convert('America/Sao_Paulo')
+            elif i < len(response.json()) - 1:
+                # print(i)
+                continue
+            else:
+                # print(i)
+                return None
+
+    # Aqui ele busca a data da ultima ação do operador dentro do JSON
+    def data_ultima_interacao(self, df, headers, query_inicio='http://rioquente.topdesk.net'):
+        query = query_inicio + df['ACOES']
+        response = requests.get(query, headers=headers)
+        if response.status_code == 204:
+            print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
+                df['NUMERO_CHAMADO'], pd.to_datetime(''), df['LINK']))
+            return pd.to_datetime('')
+        elif (response.status_code == 200) or (response.status_code == 206):
+            data = self.percorre_acoes(response)
+            if data != None:
+                print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
+                    df['NUMERO_CHAMADO'], data, df['LINK']))
+                return data
+            else:
+                print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
+                    df['NUMERO_CHAMADO'], pd.to_datetime(''), df['LINK']))
+                return pd.to_datetime('')
         else:
-            return df_chamados[df_chamados['CATEGORIA'] == categoria]
+            pass
+
+    # Aqui ele calcula os dias desde a ultima interação do operador
+    def calcula_dias_acao(self, df):
+        if type(df['DATA_ULTIMA_INTERACAO_OPERADOR']) == type(pd.to_datetime('')):
+            return (dt.datetime.today() - dt.datetime.fromtimestamp(df['DATA_ABERTURA'].timestamp())).days
+        else:
+            return (dt.datetime.today() - dt.datetime.fromtimestamp(df['DATA_ULTIMA_INTERACAO_OPERADOR'].timestamp())).days
+
+    # Aqui gera o Data Frame final com dias e data de ultima interação
+    def DF_UltimasAcoes(self):
+        df_tmp = self.chamadosSLACorrenteDataFrame()
+        
+        df_tmp['DATA_ABERTURA'] = pd.to_datetime(df_tmp['DATA_ABERTURA']).dt.tz_convert('America/Sao_Paulo')
+        
+        df_tmp['DATA_ALVO'] = pd.to_datetime(df_tmp['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
+        
+        df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + df_tmp['NUMERO_CHAMADO']
+        
+        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.swifter.apply(lambda row: self.data_ultima_interacao(
+            row[['NUMERO_CHAMADO', 'ACOES', 'DATA_ABERTURA', 'LINK']], self._header), axis=1)  # type: ignore
+        
+        df_tmp['DIAS_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.apply(lambda row: self.calcula_dias_acao(
+            row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
+        print(df_tmp)
+        return df_tmp
