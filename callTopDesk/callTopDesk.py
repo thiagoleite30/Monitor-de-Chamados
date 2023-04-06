@@ -5,9 +5,9 @@ import numpy as np
 import jmespath
 from datetime import timezone
 import datetime as dt
-import pytz
 import time
-import swifter
+from pandarallel import pandarallel
+pandarallel.initialize(progress_bar=True)
 
 
 # Conectando com a API do TopDesk
@@ -130,41 +130,41 @@ class chamados:
                             (df_chamados['STATUS'] != 'Pendente análise do problema') & (df_chamados['STATUS'] != 'Pendente análise do problema') &
                             (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização'))].sort_values(by='TEMPO_RESTANTE')
 
-    # Percorre ações na coluna ações
-    def percorre_acoes(self, response):
-        for i in range(len(response.json())):
-            if (response.json()[i]['invisibleForCaller'] == False) and (response.json()[i]['operator'] != None):
-                # print(response.json()[i]['creationDate'])
-                return pd.to_datetime(response.json()[i]['creationDate']).tz_convert('America/Sao_Paulo')
-            elif i < len(response.json()) - 1:
-                # print(i)
-                continue
-            else:
-                # print(i)
-                return None
+    # Aqui ele busca a data da ultima interação de fato de um operador com o cliente
+    def get_date_last_action(self, x):
+        import requests
+        import pandas as pd
+        query_inicio = 'http://rioquente.topdesk.net'
 
-    # Aqui ele busca a data da ultima ação do operador dentro do JSON
-    def data_ultima_interacao(self, df, headers, query_inicio='http://rioquente.topdesk.net'):
-        query = query_inicio + df['ACOES']
-        response = requests.get(query, headers=headers)
+        def percorre_acoes(response):
+            for i in range(len(response.json())):
+                if (response.json()[i]['invisibleForCaller'] == False) and (response.json()[i]['operator'] != None):
+                    # print(response.json()[i]['creationDate'])
+                    return pd.to_datetime(response.json()[i]['creationDate']).tz_convert('America/Sao_Paulo')
+                elif i < len(response.json()) - 1:
+                    # print(i)
+                    continue
+                else:
+                    # print(i)
+                    return None
+
+        # print(x.ACOES)
+        response = requests.get(query_inicio+x.ACOES, headers={
+                                'Authorization': 'Basic dGhpYWdvLmxlaXRlOjdlamR1LWd5em14LWN1b3lwLXFrYjV3LW80ZGFt'})
         if response.status_code == 204:
-            print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
-                df['NUMERO_CHAMADO'], pd.to_datetime(''), df['LINK']))
+            #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
             return pd.to_datetime('')
         elif (response.status_code == 200) or (response.status_code == 206):
-            data = self.percorre_acoes(response)
+            data = percorre_acoes(response)
             if data != None:
-                print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
-                    df['NUMERO_CHAMADO'], data, df['LINK']))
+                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, data))
                 return data
             else:
-                print('Chamado {} data ultima interação {}!\nLINK: {}'.format(
-                    df['NUMERO_CHAMADO'], pd.to_datetime(''), df['LINK']))
+                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
                 return pd.to_datetime('')
-        else:
-            pass
 
     # Aqui ele calcula os dias desde a ultima interação do operador
+
     def calcula_dias_acao(self, df):
         if type(df['DATA_ULTIMA_INTERACAO_OPERADOR']) == type(pd.to_datetime('')):
             return (dt.datetime.today() - dt.datetime.fromtimestamp(df['DATA_ABERTURA'].timestamp())).days
@@ -174,16 +174,18 @@ class chamados:
     # Aqui gera o Data Frame final com dias e data de ultima interação
     def DF_UltimasAcoes(self):
         df_tmp = self.chamadosSLACorrenteDataFrame()
-        
-        df_tmp['DATA_ABERTURA'] = pd.to_datetime(df_tmp['DATA_ABERTURA']).dt.tz_convert('America/Sao_Paulo')
-        
-        df_tmp['DATA_ALVO'] = pd.to_datetime(df_tmp['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
-        
-        df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + df_tmp['NUMERO_CHAMADO']
-        
-        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.swifter.apply(lambda row: self.data_ultima_interacao(
-            row[['NUMERO_CHAMADO', 'ACOES', 'DATA_ABERTURA', 'LINK']], self._header), axis=1)  # type: ignore
-        
+
+        df_tmp['DATA_ABERTURA'] = pd.to_datetime(
+            df_tmp['DATA_ABERTURA']).dt.tz_convert('America/Sao_Paulo')
+
+        df_tmp['DATA_ALVO'] = pd.to_datetime(
+            df_tmp['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
+
+        df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_tmp['NUMERO_CHAMADO']
+
+        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(self.get_date_last_action, axis=1)  # type: ignore
+
         df_tmp['DIAS_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.apply(lambda row: self.calcula_dias_acao(
             row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
         print(df_tmp)

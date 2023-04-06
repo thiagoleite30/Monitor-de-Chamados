@@ -20,7 +20,8 @@ load_figure_template("minty")
 #app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MINTY])
 
 server = Flask(__name__)
-app = dash.Dash(server=server, external_stylesheets=[dbc.themes.MINTY]) # type: ignore
+app = dash.Dash(server=server, suppress_callback_exceptions=True, external_stylesheets=[ # type: ignore
+                dbc.themes.MINTY])  # type: ignore
 app.title = 'Monitor de Chamados'
 server = app.server
 
@@ -44,15 +45,16 @@ app.layout = dbc.Container(children=[
                     html.H6("Operadores(as)", style={"margin-top": "10px"}),
                     dbc.InputGroup([
                         dbc.Select(
+                            id='select-operadores',
                             options=[
-                                {'label': 'Todos', 'value': 1}
+                                {'label': 'Todos', 'value': 1},
                             ],
                             disabled=True,
                             value='Todos',
                         ),
                     ]),
                 ], style={"margin-top": "10px"}),
-            ], style={"margin": "20px", "padding": "5px", "height": "100vh"}),
+            ], style={"margin": "20px", "padding": "5px", "height": "100%"}),
         ], lg=2, sm=12),
         dbc.Col([
             dbc.Row([
@@ -74,9 +76,11 @@ app.layout = dbc.Container(children=[
                     dcc.Graph(id="graph-chamados-acoes"),
                     dbc.Form([
                         html.Div([
-                            dbc.Label("Intervalo de Dias", html_for="range-slider"),
+
+                            dbc.Label("Intervalo de Dias",
+                                      html_for="range-slider"),
                             dcc.RangeSlider(id="range-slider",
-                                            min=None, max=None)
+                                            min=None, max=None),
                         ]),
 
                     ], style={"margin-top": "10px"}),
@@ -159,25 +163,34 @@ def render_graphs_chamados_respondidos(n_intervals):
 
 @app.callback(
     Output('store', 'data'),
-    Input('interval3', 'n_intervals')
+    Output('select-operadores', 'options'),
+    Output('select-operadores', 'disabled'),
+    Input('interval3', 'n_intervals'),
 )
 def get_DF_UltimasAcoes(n_intervals):
     topDesk = chamados('https://rioquente.topdesk.net/tas/api',
                        'thiago.leite', '7ejdu-gyzmx-cuoyp-qkb5w-o4dam')
+
     df_chamados = topDesk.DF_UltimasAcoes()
 
     df_filtro = df_chamados.sort_values(
         by='DIAS_ULTIMA_INTERACAO_OPERADOR', ascending=False).reset_index(drop=True)
     df_filtro = df_filtro[df_filtro['DIAS_ULTIMA_INTERACAO_OPERADOR'] > 1]
 
-    return df_filtro.to_dict()
+    lista_operadores = list(df_filtro['OPERADOR'].unique())
+    lista_operadores.sort()
+    lista_operadores.append('Todos')
+
+
+    return df_filtro.to_dict(), lista_operadores, False
 
 # Insere valor no slider range
 
 
 @app.callback(
-    Output('range-slider', 'min'), Output('range-slider',
-                                          'max'), Output('range-slider', 'value'),
+    Output('range-slider', 'min'),
+    Output('range-slider', 'max'),
+    Output('range-slider', 'value'),
     Input('store', 'data')
 )
 def input_values_range(data):
@@ -190,22 +203,28 @@ def input_values_range(data):
 @app.callback(
     Output('graph-chamados-acoes', 'figure'),
     [Input('store', 'data'), Input('interval3', 'n_intervals'),
-     Input('range-slider', 'value')]
+     Input('range-slider', 'value'), Input('select-operadores', 'value')]
 )
-def render_graphs_chamadosPDias_sem_interacao(data, n_intervals, value):
+def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, value_select):
 
     df_ultimasAcoes = pd.DataFrame(data)
-    min = int(value[0])
-    max = int(value[1])
-    df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
-        df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
-    # print(df_ultimasAcoes)
-    print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
-        value, type(value), type(min), type(max)))
+    min = int(value_range[0])
+    max = int(value_range[1])
+    print(value_select)
+    if value_select == 'Todos':
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
+        # print(df_ultimasAcoes)
+        print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
+            value_range, type(value_range), type(min), type(max)))
+    else:
+            df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (df_ultimasAcoes['OPERADOR'] == value_select)]
+
     # Posso testar com histogram no lugar de bar, porém tem que tirar o text
     fig = px.bar(df_ultimasAcoes, x='NUMERO_CHAMADO', y='DIAS_ULTIMA_INTERACAO_OPERADOR',
                  text='OPERADOR',
-                 hover_data=['OPERADOR', 'LINK'],
+                 hover_data=['OPERADOR', 'STATUS'],
                  color='GRUPO_OPERADOR')
 
     return fig
