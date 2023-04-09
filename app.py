@@ -16,12 +16,14 @@ from callTopDesk.callTopDesk import chamados
 
 from dash_bootstrap_templates import load_figure_template
 load_figure_template("minty")
+load_figure_template("darkly")
+load_figure_template("vapor")
 
-#app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MINTY])
+# app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MINTY])
 
 server = Flask(__name__)
-app = dash.Dash(server=server, suppress_callback_exceptions=True, external_stylesheets=[ # type: ignore
-                dbc.themes.MINTY])  # type: ignore
+app = dash.Dash(server=server, suppress_callback_exceptions=True, external_stylesheets=[  # type: ignore
+                dbc.themes.VAPOR])  # type: ignore
 app.title = 'Monitor de Chamados'
 server = app.server
 
@@ -42,8 +44,10 @@ app.layout = dbc.Container(children=[
                         dbc.Input(id='input-horas', placeholder='Horas para vencimento', disabled=False,
                                   value=24, type='number', min=0),
                     ]),
-                    html.H6("Operadores(as)", style={"margin-top": "10px"}),
+                    html.H6("Operadores(as)", style={
+                        "margin-top": "10px"}),
                     dbc.InputGroup([
+
                         dbc.Select(
                             id='select-operadores',
                             options=[
@@ -80,7 +84,7 @@ app.layout = dbc.Container(children=[
                             dbc.Label("Intervalo de Dias",
                                       html_for="range-slider"),
                             dcc.RangeSlider(id="range-slider",
-                                            min=None, max=None),
+                                            min=None, max=None, step=30),
                         ]),
 
                     ], style={"margin-top": "10px"}),
@@ -92,7 +96,6 @@ app.layout = dbc.Container(children=[
     dcc.Store(id="store")
 ], style={"padding": "0px"}, fluid=True)
 # =================== CallBacks ================ #
-
 
 @app.callback(
     Output('graph-pie1', 'figure'),
@@ -116,14 +119,14 @@ def render_graphs_chamados_prox_fim(n_intervals, horas):
         print(labels)
         fig = px.pie(names=[], values=None)
         fig.update_layout(margin=dict(
-            l=0, r=0, t=20, b=20), height=300, template="minty")
+            l=0, r=0, t=20, b=20), height=300, template="vapor")
         return fig, '"Chamados com Vencimento Próximo" (Por Operador)'
     elif len(labels) != 0:
         fig = px.pie(names=labels, values=values)
         fig.update_traces(
             textposition='inside', textinfo='percent+value')
         fig.update_layout(margin=dict(
-            l=0, r=0, t=20, b=20), height=300, template="minty")
+            l=0, r=0, t=20, b=20), height=300, template="vapor")
         return fig, '"Chamados com vencimento nas próxmas {} horas" (Por Operador): '.format(horas)
 
 # Renderiza o gráfico de chamados respondidos
@@ -149,13 +152,13 @@ def render_graphs_chamados_respondidos(n_intervals):
         print(labels)
         fig = px.pie(names=[], values=None)
         fig.update_layout(margin=dict(
-            l=0, r=0, t=40, b=20), height=300, template="minty")
+            l=0, r=0, t=40, b=20), height=300, template="vapor")
         return fig
     elif len(labels) != 0:
         fig = px.pie(names=labels, values=values)
         fig.update_traces(textposition='inside', textinfo='percent+value')
         fig.update_layout(margin=dict(
-            l=0, r=0, t=40, b=20), height=300, template="minty")
+            l=0, r=0, t=40, b=20), height=300, template="vapor")
         return fig
 
 # Aqui geramos o DF e guardamos no store que será armazenado no cash do navegador do usuário
@@ -180,7 +183,6 @@ def get_DF_UltimasAcoes(n_intervals):
     lista_operadores = list(df_filtro['OPERADOR'].unique())
     lista_operadores.sort()
     lista_operadores.append('Todos')
-
 
     return df_filtro.to_dict(), lista_operadores, False
 
@@ -218,7 +220,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
         print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
             value_range, type(value_range), type(min), type(max)))
     else:
-            df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
             df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (df_ultimasAcoes['OPERADOR'] == value_select)]
 
     # Posso testar com histogram no lugar de bar, porém tem que tirar o text
@@ -226,6 +228,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
                  text='OPERADOR',
                  hover_data=['OPERADOR', 'STATUS'],
                  color='GRUPO_OPERADOR')
+    fig.update_layout(template="vapor")
 
     return fig
 
