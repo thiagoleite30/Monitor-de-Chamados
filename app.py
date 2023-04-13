@@ -11,6 +11,7 @@ import plotly.express as px
 from flask import Flask
 
 import dash_bootstrap_components as dbc
+import dash_loading_spinners as dls
 
 from callTopDesk.callTopDesk import chamados
 
@@ -77,7 +78,15 @@ app.layout = dbc.Container(children=[
                 dbc.Col([
                     html.H5(
                         'Chamados/Dias Sem Interação do Operador de Service Desk'),
-                    dcc.Graph(id="graph-chamados-acoes"),
+                    dls.Pacman(
+                        [dcc.Store(id="store"),
+                         dcc.Graph(id="graph-chamados-acoes")],
+                        color="#D9F028",
+                        width=100,
+                        speed_multiplier=1,
+                        show_initially=True,
+                        id="loading-store",
+                    ),
                     dbc.Form([
                         html.Div([
 
@@ -86,9 +95,9 @@ app.layout = dbc.Container(children=[
                             dcc.RangeSlider(id="range-slider",
                                             min=None, max=None, step=30),
                         ]),
-
+                        dcc.Interval(id="interval3", interval=1800000),
                     ], style={"margin-top": "10px"}),
-                    dcc.Interval(id="interval3", interval=1800000),
+
                 ], lg=10, sm=12, style={"margin-top": "20px"}),
             ]),
         ]),
@@ -96,6 +105,7 @@ app.layout = dbc.Container(children=[
     dcc.Store(id="store")
 ], style={"padding": "0px"}, fluid=True)
 # =================== CallBacks ================ #
+
 
 @app.callback(
     Output('graph-pie1', 'figure'),
@@ -161,6 +171,7 @@ def render_graphs_chamados_respondidos(n_intervals):
             l=0, r=0, t=40, b=20), height=300, template="vapor")
         return fig
 
+
 # Aqui geramos o DF e guardamos no store que será armazenado no cash do navegador do usuário
 
 
@@ -168,6 +179,7 @@ def render_graphs_chamados_respondidos(n_intervals):
     Output('store', 'data'),
     Output('select-operadores', 'options'),
     Output('select-operadores', 'disabled'),
+    Output("loading-store", 'show_initially'),
     Input('interval3', 'n_intervals'),
 )
 def get_DF_UltimasAcoes(n_intervals):
@@ -184,7 +196,7 @@ def get_DF_UltimasAcoes(n_intervals):
     lista_operadores.sort()
     lista_operadores.append('Todos')
 
-    return df_filtro.to_dict(), lista_operadores, False
+    return df_filtro.to_dict(), lista_operadores, False, False
 
 # Insere valor no slider range
 
@@ -205,10 +217,10 @@ def input_values_range(data):
 @app.callback(
     Output('graph-chamados-acoes', 'figure'),
     [Input('store', 'data'), Input('interval3', 'n_intervals'),
-     Input('range-slider', 'value'), Input('select-operadores', 'value')]
+     Input('range-slider', 'value'), Input('select-operadores', 'value')],
+
 )
 def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, value_select):
-
     df_ultimasAcoes = pd.DataFrame(data)
     min = int(value_range[0])
     max = int(value_range[1])
