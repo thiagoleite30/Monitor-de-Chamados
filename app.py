@@ -79,7 +79,7 @@ app.layout = dbc.Container(children=[
                     html.H5(
                         'Chamados/Dias Sem Interação do Operador de Service Desk'),
                     dls.Pacman(
-                        [dcc.Store(id="store"),
+                        [
                          dcc.Graph(id="graph-chamados-acoes")],
                         color="#D9F028",
                         width=100,
@@ -247,4 +247,4 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 # ================= Run Server ================= #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8080, host='0.0.0.0')
+    app.run_server(debug=True, port=8050, host='0.0.0.0')
