@@ -128,7 +128,8 @@ class chamados:
         return df_chamados[(df_chamados['TEMPO_RESTANTE'] >= 0) & (df_chamados['TEMPO_RESTANTE'] < horas) &
                            ((df_chamados['STATUS'] != 'Pendente Fornecedor') & (df_chamados['STATUS'] != 'Pendente cliente') &
                             (df_chamados['STATUS'] != 'Pendente análise do problema') & (df_chamados['STATUS'] != 'Pendente análise do problema') &
-                            (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização'))].sort_values(by='TEMPO_RESTANTE')
+                            (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização') &
+                            (df_chamados['STATUS'] != 'Agendado com o Usuário'))].sort_values(by='TEMPO_RESTANTE')
 
     # Aqui ele busca a data da ultima interação de fato de um operador com o cliente
     def get_date_last_action(self, x):
