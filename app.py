@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
 import asyncio
+import webbrowser
 
 import dash
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 
 import plotly.express as px
 
@@ -16,6 +18,7 @@ import dash_loading_spinners as dls
 from callTopDesk.callTopDesk import chamados
 
 from dash_bootstrap_templates import load_figure_template
+
 load_figure_template("minty")
 load_figure_template("darkly")
 load_figure_template("vapor")
@@ -24,10 +27,9 @@ load_figure_template("vapor")
 
 server = Flask(__name__)
 app = dash.Dash(server=server, suppress_callback_exceptions=True, external_stylesheets=[  # type: ignore
-                dbc.themes.VAPOR])  # type: ignore
+    dbc.themes.VAPOR])  # type: ignore
 app.title = 'Monitor de Chamados'
 server = app.server
-
 
 # =================== Layout ================== #
 
@@ -80,13 +82,14 @@ app.layout = dbc.Container(children=[
                         'Chamados/Dias Sem Interação do Operador de Service Desk'),
                     dls.Pacman(
                         [
-                         dcc.Graph(id="graph-chamados-acoes")],
+                            dcc.Graph(id="graph-chamados-acoes")],
                         color="#D9F028",
                         width=100,
                         speed_multiplier=1,
                         show_initially=True,
                         id="loading-store",
                     ),
+                    html.Pre(id='data_click'),
                     dbc.Form([
                         html.Div([
 
@@ -104,6 +107,8 @@ app.layout = dbc.Container(children=[
     ]),
     dcc.Store(id="store")
 ], style={"padding": "0px"}, fluid=True)
+
+
 # =================== CallBacks ================ #
 
 
@@ -138,6 +143,7 @@ def render_graphs_chamados_prox_fim(n_intervals, horas):
         fig.update_layout(margin=dict(
             l=0, r=0, t=20, b=20), height=300, template="vapor")
         return fig, '"Chamados com vencimento nas próxmas {} horas" (Por Operador): '.format(horas)
+
 
 # Renderiza o gráfico de chamados respondidos
 
@@ -198,6 +204,7 @@ def get_DF_UltimasAcoes(n_intervals):
 
     return df_filtro.to_dict(), lista_operadores, False, False
 
+
 # Insere valor no slider range
 
 
@@ -209,7 +216,11 @@ def get_DF_UltimasAcoes(n_intervals):
 )
 def input_values_range(data):
     df_ultimasAcoes = pd.DataFrame(data)
-    return df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].min(), df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].max(), [df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].min(), df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].max()]  # type: ignore
+    return df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].min(), df_ultimasAcoes[
+        'DIAS_ULTIMA_INTERACAO_OPERADOR'].max(), [df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'].min(),
+                                                  df_ultimasAcoes[
+                                                      'DIAS_ULTIMA_INTERACAO_OPERADOR'].max()]  # type: ignore
+
 
 # Renderiza o gráfico de chamados por dias sem interação dos operadores
 
@@ -227,24 +238,34 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
     print(value_select)
     if value_select == 'Todos':
         df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
-            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
+                df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
         # print(df_ultimasAcoes)
         print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
             value_range, type(value_range), type(min), type(max)))
     else:
         df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
-            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (df_ultimasAcoes['OPERADOR'] == value_select)]
+                df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (
+                                                      df_ultimasAcoes['OPERADOR'] == value_select)]
 
     # Posso testar com histogram no lugar de bar, porém tem que tirar o text
     fig = px.bar(df_ultimasAcoes, x='NUMERO_CHAMADO', y='DIAS_ULTIMA_INTERACAO_OPERADOR',
                  text='OPERADOR',
-                 hover_data=['OPERADOR', 'STATUS'],
+                 hover_data=['OPERADOR', 'STATUS', 'LINK'],
                  color='GRUPO_OPERADOR')
     fig.update_layout(template="vapor")
 
     return fig
 
 
+# Callback que abre o link do chamado em uma nova tab
+"""@app.callback(Output('data_click', 'children'), Input('graph-chamados-acoes', 'clickData'))
+def event_clickData(clickData):
+    if clickData:
+        webbrowser.get('google-chrome').open_new_tab(clickData['points'][0]['customdata'][2])
+    else:
+        raise PreventUpdate"""
+
+
 # ================= Run Server ================= #
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050, host='0.0.0.0')
+    app.run_server(debug=False, port=8080, host='0.0.0.0')
