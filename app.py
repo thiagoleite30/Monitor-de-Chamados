@@ -6,8 +6,6 @@ import plotly.graph_objects as go
 import pandas as pd
 from dash_bootstrap_templates import ThemeSwitchAIO
 import dash_loading_spinners as dls
-import numpy as np
-import asyncio
 
 from flask import Flask
 
@@ -330,4 +328,4 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8050, host='0.0.0.0')
+    app.run_server(debug=False, port=80)
