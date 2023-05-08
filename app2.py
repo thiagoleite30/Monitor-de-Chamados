@@ -12,6 +12,9 @@ import asyncio
 from flask import Flask
 
 from callTopDesk.callTopDesk import chamados
+from autenticacao import Autenticacao as autenticacao
+
+Autenticacao = autenticacao()
 
 # ===================== App ===================== #
 FONT_AWESOME = ["https://use.fontawesome.com/releases/v5.10.2/css/all.css"]
@@ -74,7 +77,7 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=4, lg=2),
+        ], sm=12, md=12, lg=2),
 
         # Col 2 - Card contendo o gráfico de chamado próximos do vencimento
         dbc.Col([
@@ -82,13 +85,14 @@ app.layout = dbc.Container(children=[
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.H5(id="h5-chamados-proximos",
+                            html.H4(id="h5-chamados-proximos",
                                     children=["Horas para vencimento"]),
                             # Esta config no gráfico tira as oções do Plotly de salvar gráfico, dar zoom e etc..
                             dcc.Graph(
                                 id='graph-pie1', config={"displayModeBar": False, "showTips": False}),
                             dcc.Interval(id='interval1', interval=15000),
                             dbc.InputGroup([
+                                html.Legend("Horas para o vencimento: "),
                                 dbc.Input(id="input-horas", placeholder="Horas para vencimento", disabled=False,
                                           value=24, type="number", min=0, className="dbc"),
                             ]),
@@ -96,7 +100,7 @@ app.layout = dbc.Container(children=[
                     ])
                 ])
             ], style=tab_card),
-        ], sm=8, lg=5),
+        ], sm=12, md=12, lg=5),
 
         # Col 3 - Card contendo gráfico de chamados respondidos
         dbc.Col([
@@ -104,7 +108,7 @@ app.layout = dbc.Container(children=[
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.H5('"Chamados Respondidos" (Por Operador): '),
+                            html.H4('"Chamados Respondidos" (Por Operador): '),
                             dcc.Graph(
                                 id="graph-pie2", config={"displayModeBar": False, "showTips": False}),
                             dcc.Interval(id="interval2", interval=15000),
@@ -112,7 +116,7 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=8, lg=5),
+        ], sm=12, md=12, lg=5),
     ], class_name="main_row g-2 my-auto", style={'margin-top': '7px'}),  # Fim da Row 1
 
     # Row 2 - Abraça o gráfico de chamados sem interação do operador
@@ -120,12 +124,12 @@ app.layout = dbc.Container(children=[
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H5(
+                    html.H4(
                         "Chamados/Dias Sem Interação do Operador de Service Desk"),
                     dbc.Row([
                         dbc.Col([
                             dbc.InputGroup([
-
+                                html.Legend("Selecione Operador: "),
                                 dbc.Select(
                                     id='select-operadores',
                                     options=[
@@ -191,7 +195,7 @@ def render_graphs_chamados_prox_fim(n_intervals, horas, toggle):
     template = template_theme1 if toggle else template_theme2
 
     topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       'thiago.leite', '7ejdu-gyzmx-cuoyp-qkb5w-o4dam')
+                       Autenticacao.user(), Autenticacao.key())
     df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
 
     labels = list(df_chamados_ProxFim['OPERADOR'].value_counts().index)
@@ -225,7 +229,7 @@ def render_graphs_chamados_respondidos(n_intervals, toggle):
     template = template_theme1 if toggle else template_theme2
 
     topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       'thiago.leite', '7ejdu-gyzmx-cuoyp-qkb5w-o4dam')
+                       Autenticacao.user(), Autenticacao.key())
     df_chamados = topDesk.chamadosSLACorrenteDataFrame()
     df = df_chamados[df_chamados['STATUS'] == 'Respondido pelo usuário']
 
@@ -260,7 +264,7 @@ def render_graphs_chamados_respondidos(n_intervals, toggle):
 )
 def get_DF_UltimasAcoes(n_intervals):
     topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       'thiago.leite', '7ejdu-gyzmx-cuoyp-qkb5w-o4dam')
+                       Autenticacao.user(), Autenticacao.key())
 
     df_chamados = topDesk.DF_UltimasAcoes()
 
@@ -326,4 +330,4 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050, host='0.0.0.0')
+    app.run_server(debug=False, port=8050, host='0.0.0.0')

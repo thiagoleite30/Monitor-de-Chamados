@@ -7,6 +7,8 @@ from datetime import timezone
 import datetime as dt
 import time
 from pandarallel import pandarallel
+
+
 pandarallel.initialize(progress_bar=True)
 
 
@@ -135,7 +137,13 @@ class chamados:
     def get_date_last_action(self, x):
         import requests
         import pandas as pd
+        from autenticacao import Autenticacao as autenticacao
+        Autenticacao = autenticacao()
         query_inicio = 'http://rioquente.topdesk.net'
+
+        chave = base64.b64encode(
+            (Autenticacao.user() + ':' + Autenticacao.key()).encode('utf-8')).decode('utf-8')
+        header = {'Authorization': 'Basic {}'.format(chave)}
 
         def percorre_acoes(response):
             for i in range(len(response.json())):
@@ -150,8 +158,7 @@ class chamados:
                     return None
 
         # print(x.ACOES)
-        response = requests.get(query_inicio+x.ACOES, headers={
-                                'Authorization': 'Basic dGhpYWdvLmxlaXRlOjdlamR1LWd5em14LWN1b3lwLXFrYjV3LW80ZGFt'})
+        response = requests.get(query_inicio+x.ACOES, headers=header)
         if response.status_code == 204:
             #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
             return pd.to_datetime('')
