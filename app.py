@@ -213,7 +213,7 @@ def render_graphs_chamados_prox_fim(n_intervals, horas, toggle):
             textposition='inside', textinfo='percent+value')
         fig.update_layout(margin=dict(
             l=0, r=0, t=20, b=20), height=300, template=template)
-        return fig, '"Chamados com vencimento nas próxmas {} horas" (Por Operador): '.format(horas)
+        return fig, '"Chamados com vencimento nas próximas {} horas" (Por Operador): '.format(horas)
 
 # Callback - Renderiza o gráfico de chamados respondidos
 
@@ -328,4 +328,4 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=80)
+    app.run_server(debug=False, port=80, host='0.0.0.0')
