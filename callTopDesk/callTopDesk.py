@@ -123,6 +123,10 @@ class chamados:
             df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = int(
                 diff_seconds / 3600)
 
+        df_chamados['CHAMADO (LINK)'] = '[' + df_chamados['NUMERO_CHAMADO'] + \
+            '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_chamados['NUMERO_CHAMADO'] + ')'
+
         return df_chamados
 
     def filtroChamadosProxFim(self, horas=1000):
@@ -160,15 +164,15 @@ class chamados:
         # print(x.ACOES)
         response = requests.get(query_inicio+x.ACOES, headers=header)
         if response.status_code == 204:
-            #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
+            # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
             return pd.to_datetime('')
         elif (response.status_code == 200) or (response.status_code == 206):
             data = percorre_acoes(response)
             if data != None:
-                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, data))
+                # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, data))
                 return data
             else:
-                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
+                # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
                 return pd.to_datetime('')
 
     # Aqui ele calcula os dias desde a ultima interação do operador
@@ -192,7 +196,8 @@ class chamados:
         df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
             df_tmp['NUMERO_CHAMADO']
 
-        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(self.get_date_last_action, axis=1)  # type: ignore
+        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(
+            self.get_date_last_action, axis=1)  # type: ignore
 
         df_tmp['DIAS_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.apply(lambda row: self.calcula_dias_acao(
             row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
