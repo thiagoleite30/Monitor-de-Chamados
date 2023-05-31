@@ -22,6 +22,7 @@ app = dash.Dash(__name__, external_stylesheets=FONT_AWESOME)
 app.scripts.config.serve_locally = True
 server = app.server
 
+df = pd.DataFrame()
 
 # =================== Styles ==================== #
 template_theme1 = "minty"
@@ -172,7 +173,20 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=12),
+        ], sm=12, md=12, lg=8),
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("Agendamentos"),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id="container-table-df")
+                        ]),
+                    ]),
+                ]),
+            ], style=tab_card),
+        ], sm=12, md=12, lg=4),
+
     ], className='main_row g-2 my-auto'),
     dcc.Store(id="store")
 ], fluid=True, style={"height": "100%"})
@@ -321,11 +335,30 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
                  text='OPERADOR',
                  hover_data=['OPERADOR', 'STATUS'],
                  color='GRUPO_OPERADOR', template=template)
-    #fig.update_layout(template=template)
+    # fig.update_layout(template=template)
 
     return fig
+
+# Callback Agendamentos
+
+
+@app.callback(
+    Output('container-table-df', 'children'),
+    [
+     Input(ThemeSwitchAIO.ids.switch("theme"), "value")
+     ]
+)
+def agendamento_card(toggle):
+    # template = template_theme1 if toggle else template_theme2
+    df = pd.DataFrame(
+         {
+             "Chamado": ["I2305-000", "I2305-0785", "I2305-8000", "I2305-0800"],
+             "Operador": ["Fernando Henrique Machado", "Thiago Francisco de Souza Leite", "Dielson Freitas", "João Marcelo"],
+             "Hora Agendamento": ["15:30", "15:45", "15:45", "15:50"]
+         })
+    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True) # type: ignore
 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=80, host='0.0.0.0')
+    app.run_server(debug=True, port=80, host='0.0.0.0')
