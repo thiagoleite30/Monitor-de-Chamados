@@ -71,6 +71,7 @@ datatable_chamados_vencendo = html.Div(
         id="tabela-chamados-vencendo",
         filter_action="native",
         page_size=10,
+        style_table={'height': '100%', 'width': '100%'}
     )
 )
 
@@ -86,6 +87,7 @@ datatable_chamados_respondidos = html.Div(
         id="tabela-chamados-respondidos",
         filter_action="native",
         page_size=10,
+        style_table={'height': '50%', 'width': '100%'}
     )
 )
 
