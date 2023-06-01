@@ -20,7 +20,7 @@ FONT_AWESOME = ["https://use.fontawesome.com/releases/v5.10.2/css/all.css"]
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
 app = dash.Dash(__name__, external_stylesheets=[
-                FONT_AWESOME, dbc.themes.BOOTSTRAP, dbc_css])
+                FONT_AWESOME, dbc.themes.BOOTSTRAP, dbc_css], title="Monitor de Chamados")
 app.scripts.config.serve_locally = True
 server = app.server
 
@@ -146,7 +146,8 @@ app.layout = dbc.Container(children=[
                             ]),
                         ]),
                         dbc.Col([
-                            dbc.Container(datatable_chamados_vencendo_with_theme)
+                            dbc.Container(
+                                datatable_chamados_vencendo_with_theme)
                         ]),
                     ])
                 ])
@@ -165,7 +166,8 @@ app.layout = dbc.Container(children=[
                             dcc.Interval(id="interval2", interval=15000),
                         ]),
                         dbc.Col([
-                            dbc.Container(datatable_chamados_respondidos_with_theme)    
+                            dbc.Container(
+                                datatable_chamados_respondidos_with_theme)
                         ]),
                     ]),
                 ]),
@@ -282,8 +284,10 @@ def render_graphs_chamados_prox_fim(n_intervals, horas, toggle):
         fig.update_layout(margin=dict(
             l=0, r=0, t=20, b=20), height=300, template=template)
         return fig, '"Chamados com vencimento nas próximas {} horas" (Por Operador): '.format(horas)
-    
+
 # Callback chamados próximo de vencer
+
+
 @app.callback(
     dash.dependencies.Output('tabela-chamados-vencendo', 'data'),
     dash.dependencies.Output('tabela-chamados-vencendo', 'columns'),
