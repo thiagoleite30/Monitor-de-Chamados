@@ -130,7 +130,7 @@ class chamados:
 
         # Abreviar nomes de operadores
         df_chamados['OPERADOR'] = df_chamados['OPERADOR'].apply(lambda x: x.split(
-        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Field Service' else x)
 
         # Abreviar nomes dos solicitantes
         df_chamados['SOLICITANTE'] = df_chamados['SOLICITANTE'].apply(
