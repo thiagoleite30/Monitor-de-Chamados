@@ -377,7 +377,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
     Input('select-tabel', 'value'),
     Input('interval4', 'n_intervals'),
 )
-def agendamento_card(horas, value_selected, n_intervals):
+def table_card_chamados(horas, value_selected, n_intervals):
     print(
         f"\n\n\n********* O VALUE É {value_selected} o TYPE é {type(value_selected)} NESTE CALLBACK *******\n")
     if value_selected == "Chamados Respondidos" or value_selected == "2":
