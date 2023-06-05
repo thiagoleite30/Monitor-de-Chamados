@@ -127,9 +127,14 @@ class chamados:
         df_chamados['CHAMADO (LINK)'] = '[' + df_chamados['NUMERO_CHAMADO'] + \
             '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
             df_chamados['NUMERO_CHAMADO'] + ')'
+
+        # Abreviar nomes de operadores
+        df_chamados['OPERADOR'] = df_chamados['OPERADOR'].apply(lambda x: x.split(
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
         
-        # Abreviar nomes de operadores    
-        df_chamados['OPERADOR'] = df_chamados['OPERADOR'].apply(lambda x: x.split()[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
+        # Abreviar nomes dos solicitantes
+        df_chamados['SOLICITANTE'] = df_chamados['SOLICITANTE'].apply(lambda x: x.split()[0] + ' ' + x.split()[-1])
+
 
         return df_chamados
 
@@ -200,14 +205,14 @@ class chamados:
 
         df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
             df_tmp['NUMERO_CHAMADO']
-            
 
         df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(
             self.get_date_last_action, axis=1)  # type: ignore
 
         df_tmp['DIAS_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.apply(lambda row: self.calcula_dias_acao(
             row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
-        
-        df_tmp['OPERADOR'] = df_tmp['OPERADOR'].apply(lambda x: x.split()[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
-        #print(df_tmp)
+
+        df_tmp['OPERADOR'] = df_tmp['OPERADOR'].apply(lambda x: x.split(
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
+        # print(df_tmp)
         return df_tmp

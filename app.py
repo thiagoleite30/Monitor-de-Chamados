@@ -51,53 +51,6 @@ main_config = {
 
 # =================== Layout ==================== #
 
-datatable_agendados = html.Div(
-    dt.DataTable(
-        id="tabela-agendamentos",
-        filter_action="native",
-    )
-)
-
-datatable_agendados_with_theme = html.Div(
-    [
-        html.H4("Teste Tabelas DataTable"),
-        datatable_agendados
-    ],
-    className="dbc"
-)
-
-datatable_chamados_vencendo = html.Div(
-    dt.DataTable(
-        id="tabela-chamados-vencendo",
-        filter_action="native",
-        page_size=10,
-        style_table={'height': '100%', 'width': '100%'}
-    )
-)
-
-datatable_chamados_vencendo_with_theme = html.Div(
-    [
-        datatable_chamados_vencendo
-    ],
-    className="dbc"
-)
-
-datatable_chamados_respondidos = html.Div(
-    dt.DataTable(
-        id="tabela-chamados-respondidos",
-        filter_action="native",
-        page_size=10,
-        style_table={'height': '50%', 'width': '100%'}
-    )
-)
-
-datatable_chamados_respondidos_with_theme = html.Div(
-    [
-        datatable_chamados_respondidos
-    ],
-    className="dbc"
-)
-
 app.layout = dbc.Container(children=[
     # Layout de fato
     # Row 1
@@ -144,15 +97,11 @@ app.layout = dbc.Container(children=[
                                 dbc.Input(id="input-horas", placeholder="Horas para vencimento", disabled=False,
                                           value=24, type="number", min=0, className="dbc"),
                             ]),
-                        ]),
-                        dbc.Col([
-                            dbc.Container(
-                                datatable_chamados_vencendo_with_theme)
-                        ]),
+                        ], style={"width": True}),
                     ])
                 ])
             ], style=tab_card),
-        ], sm=12, md=12, lg=5),
+        ], sm=12, md=12, lg=3),
 
         # Col 3 - Card contendo gráfico de chamados respondidos
         dbc.Col([
@@ -164,15 +113,39 @@ app.layout = dbc.Container(children=[
                             dcc.Graph(
                                 id="graph-pie2", config={"displayModeBar": False, "showTips": False}),
                             dcc.Interval(id="interval2", interval=15000),
-                        ]),
+                        ], style={"width": True}),
+                    ]),
+                ]),
+            ], style=tab_card),
+        ], sm=12, md=12, lg=3),
+
+        # Col 4 - Card contendo tabela de chamados vencendo ou respondidos com link
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
                         dbc.Col([
-                            dbc.Container(
-                                datatable_chamados_respondidos_with_theme)
+                            dcc.Interval(id="interval4", interval=120000),
+                            html.H4('Tabela de chamados'),
+                            html.H6(
+                                'Próximos do vencimento ou Respondidos (defina abaixo)'),
+                            dbc.InputGroup([
+                                dbc.Select(
+                                    id='select-tabel',
+                                    options=[
+                                        {'label': 'Chamados Vencendo', 'value': 1},
+                                        {'label': 'Chamados Respondidos', 'value': 2},
+                                    ],
+                                    disabled=False,
+                                    value='Chamados Vencendo',
+                                ),
+                            ], style={"margin-bottom": "10px"}),
+                            html.Div(id="div_exemplo", className="dbc")
                         ]),
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=5),
+        ], sm=12, md=12, lg=4),
     ], class_name="main_row g-2 my-auto", style={'margin-top': '7px'}),  # Fim da Row 1
 
     # Row 2 - Abraça o gráfico de chamados sem interação do operador
@@ -230,18 +203,16 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=6),
+        ], sm=12, md=12, lg=8),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     dbc.Row([
-                        dbc.Col([
-                            dbc.Container(datatable_agendados_with_theme)
-                        ]),
+
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=6),
+        ], sm=12, md=12, lg=4),
 
     ], className='main_row g-2 my-auto'),
     dcc.Store(id="store")
@@ -285,26 +256,6 @@ def render_graphs_chamados_prox_fim(n_intervals, horas, toggle):
             l=0, r=0, t=20, b=20), height=300, template=template)
         return fig, '"Chamados com vencimento nas próximas {} horas" (Por Operador): '.format(horas)
 
-# Callback chamados próximo de vencer
-
-
-@app.callback(
-    dash.dependencies.Output('tabela-chamados-vencendo', 'data'),
-    dash.dependencies.Output('tabela-chamados-vencendo', 'columns'),
-    dash.dependencies.Input('interval1', 'n_intervals'),
-    Input('input-horas', 'value'),
-)
-def input_datatable_chamados_vencendo(n_intervals, horas):
-
-    topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       Autenticacao.user(), Autenticacao.key())
-    df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
-
-    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
-        "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR"]].columns]
-
-    return df_chamados_ProxFim.to_dict('records'), columns
-
 
 # Callback - Renderiza o gráfico de chamados respondidos
 
@@ -340,26 +291,6 @@ def render_graphs_chamados_respondidos(n_intervals, toggle):
         fig.update_layout(margin=dict(
             l=0, r=0, t=40, b=20), height=300, template=template)
         return fig
-
- # Callback tabela de chamados respondidos
-
-
-@app.callback(
-    dash.dependencies.Output('tabela-chamados-respondidos', 'data'),
-    dash.dependencies.Output('tabela-chamados-respondidos', 'columns'),
-    dash.dependencies.Input('interval1', 'n_intervals')
-)
-def input_datatable_chamados_respondidos(n_intervals):
-
-    topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       Autenticacao.user(), Autenticacao.key())
-    df_chamados = topDesk.chamadosSLACorrenteDataFrame()
-    df = df_chamados[df_chamados['STATUS'] == 'Respondido pelo usuário']
-
-    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
-        "name": i, "id": i} for i in df[["CHAMADO (LINK)", "OPERADOR"]].columns]
-
-    return df.to_dict('records'), columns
 
 
 # CallBack - Aqui geramos o DF e guardamos no store que será armazenado no cash do navegador do usuário
@@ -441,30 +372,35 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 
 @app.callback(
-    dash.dependencies.Output('tabela-agendamentos', 'data'),
-    dash.dependencies.Output('tabela-agendamentos', 'columns'),
-    dash.dependencies.Input('interval2', 'n_intervals')
+    Output('div_exemplo', 'children'),
+    Input('input-horas', 'value'),
+    Input('select-tabel', 'value'),
+    Input('interval4', 'n_intervals'),
 )
-def agendamento_card(toggle):
-    # template = template_theme1 if toggle else template_theme2
-    df = pd.DataFrame(
-        {
-            "Chamado": ["I2305-000", "I2305-0785", "I2305-8000"],
-            "Operador": ["Fernando Henrique Machado", "Thiago Francisco de Souza Leite", "Dielson Freitas"],
-            "Hora Agendamento": ["15:30", "15:45", "15:50"],
-            "Link": ['[Google](https://www.google.com)', '[Youtube](https://www.youtube.com/watch?v=LU5-ZmF7Itc&ab_channel=Caz%C3%A9TV)', '[Facebook](https://www.facebook.com)']
-        })
+def agendamento_card(horas, value_selected, n_intervals):
+    print(
+        f"\n\n\n********* O VALUE É {value_selected} o TYPE é {type(value_selected)} NESTE CALLBACK *******\n")
+    if value_selected == "Chamados Respondidos" or value_selected == "2":
+        topDesk = chamados('https://rioquente.topdesk.net/tas/api',
+                           Autenticacao.user(), Autenticacao.key())
+        df_chamados = topDesk.chamadosSLACorrenteDataFrame()
+        df = df_chamados[df_chamados['STATUS'] == 'Respondido pelo usuário']
 
-    topDesk = chamados('https://rioquente.topdesk.net/tas/api',
-                       Autenticacao.user(), Autenticacao.key())
-    df_chamados = topDesk.chamadosSLACorrenteDataFrame()
-    df = df_chamados[df_chamados['STATUS'] == 'Respondido pelo usuário']
+        columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+            "name": i, "id": i} for i in df[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
 
-    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
-        "name": i, "id": i} for i in df[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
-    return df.to_dict('records'), columns
+        return dt.DataTable(df.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
+    elif value_selected == "Chamados Vencendo" or value_selected == "1":
+        print(f'\n\n*************CHAMADOS VENCENDO****************\n\n')
+        topDesk = chamados('https://rioquente.topdesk.net/tas/api',
+                           Autenticacao.user(), Autenticacao.key())
+        df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
+        columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+            "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
+
+        return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8080, host='0.0.0.0')
+    app.run_server(debug=False, port=80, host='0.0.0.0')
