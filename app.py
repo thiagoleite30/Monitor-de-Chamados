@@ -421,6 +421,8 @@ def table_card_chamados(horas, value_selected, n_intervals):
 
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
 
+# Callback de update de tabela com chamados sem ação dos operadores
+
 
 @app.callback(
     Output('div_table_chamados_por_dias_ultima_acao', 'children'),
@@ -449,10 +451,12 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
 
     columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
         "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
+    
+    columns[2]["name"] = "Dias"
 
     return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=80, host='0.0.0.0')
+    app.run_server(debug=True, port=80, host='0.0.0.0')

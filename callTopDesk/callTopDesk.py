@@ -131,10 +131,10 @@ class chamados:
         # Abreviar nomes de operadores
         df_chamados['OPERADOR'] = df_chamados['OPERADOR'].apply(lambda x: x.split(
         )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
-        
-        # Abreviar nomes dos solicitantes
-        df_chamados['SOLICITANTE'] = df_chamados['SOLICITANTE'].apply(lambda x: x.split()[0] + ' ' + x.split()[-1])
 
+        # Abreviar nomes dos solicitantes
+        df_chamados['SOLICITANTE'] = df_chamados['SOLICITANTE'].apply(
+            lambda x: x.split()[0] + ' ' + x.split()[-1])
 
         return df_chamados
 
@@ -203,8 +203,14 @@ class chamados:
         df_tmp['DATA_ALVO'] = pd.to_datetime(
             df_tmp['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
 
+        """
         df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
             df_tmp['NUMERO_CHAMADO']
+        """
+        # Pegar link de chamados e transformar em Markdown
+        df_tmp['CHAMADO (LINK)'] = '[' + df_tmp['NUMERO_CHAMADO'] + \
+            '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_tmp['NUMERO_CHAMADO'] + ')'
 
         df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(
             self.get_date_last_action, axis=1)  # type: ignore
