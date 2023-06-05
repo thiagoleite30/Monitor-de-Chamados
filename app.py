@@ -127,8 +127,6 @@ app.layout = dbc.Container(children=[
                         dbc.Col([
                             dcc.Interval(id="interval4", interval=120000),
                             html.H4('Tabela de chamados'),
-                            html.H6(
-                                'Próximos do vencimento ou Respondidos (defina abaixo)'),
                             dbc.InputGroup([
                                 dbc.Select(
                                     id='select-tabel',
@@ -140,7 +138,14 @@ app.layout = dbc.Container(children=[
                                     value='Chamados Vencendo',
                                 ),
                             ], style={"margin-bottom": "10px"}),
-                            html.Div(id="div_exemplo", className="dbc")
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table",
+                            ),
                         ]),
                     ]),
                 ]),
@@ -153,52 +158,57 @@ app.layout = dbc.Container(children=[
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(
-                        "Chamados/Dias Sem Interação do Operador de Service Desk"),
                     dbc.Row([
                         dbc.Col([
-                            dbc.InputGroup([
-                                html.Legend("Selecione Operador: "),
-                                dbc.Select(
-                                    id='select-operadores',
-                                    options=[
-                                        {'label': 'Todos', 'value': 1},
-                                    ],
-                                    disabled=True,
-                                    value='Todos',
-                                ),
-                            ]),
-                        ]),
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dls.Pacman(
-                                [
-                                    dcc.Graph(id="graph-chamados-acoes",
-                                              config={
-                                                  "displayModeBar": False,
-                                                  "showTips": False},
-                                              style={"margin-top": "30px"}),],
-                                color="#D9F028",
-                                width=100,
-                                speed_multiplier=1,
-                                show_initially=True,
-                                id="loading-store",
-                            ),
-                        ]),
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Form([
-                                html.Div([
-
-                                    dbc.Label("Intervalo de Dias",
-                                              html_for="range-slider"),
-                                    dcc.RangeSlider(id="range-slider",
-                                                    min=None, max=None, step=30),
+                            html.H4(
+                                "Chamados/Dias Sem Interação do Operador"),
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.InputGroup([
+                                        html.Legend("Selecione Operador: "),
+                                        dbc.Select(
+                                            id='select-operadores',
+                                            options=[
+                                                {'label': 'Todos', 'value': 1},
+                                            ],
+                                            disabled=True,
+                                            value='Todos',
+                                        ),
+                                    ]),
                                 ]),
-                                dcc.Interval(id="interval3", interval=1800000),
-                            ], style={"margin-top": "10px"}),
+                            ]),
+                            dbc.Row([
+                                dbc.Col([
+                                    dls.Pacman(
+                                        [
+                                            dcc.Graph(id="graph-chamados-acoes",
+                                                      config={
+                                                          "displayModeBar": False,
+                                                          "showTips": False},
+                                                      style={"margin-top": "30px"}),],
+                                        color="#D9F028",
+                                        width=100,
+                                        speed_multiplier=1,
+                                        show_initially=True,
+                                        id="loading-store",
+                                    ),
+                                ]),
+                            ]),
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.Form([
+                                        html.Div([
+
+                                            dbc.Label("Intervalo de Dias",
+                                                      html_for="range-slider"),
+                                            dcc.RangeSlider(id="range-slider",
+                                                            min=None, max=None, step=30),
+                                        ]),
+                                        dcc.Interval(id="interval3",
+                                                     interval=1800000),
+                                    ], style={"margin-top": "10px"}),
+                                ]),
+                            ]),
                         ]),
                     ]),
                 ]),
@@ -208,7 +218,18 @@ app.layout = dbc.Container(children=[
             dbc.Card([
                 dbc.CardBody([
                     dbc.Row([
-
+                        dbc.Col([
+                            html.H4(
+                                "Tabela Chamados/Dias Sem Interação do Operador"),
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados_por_dias_ultima_acao", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table2",
+                            ),
+                        ]),
                     ]),
                 ]),
             ], style=tab_card),
@@ -372,7 +393,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 
 @app.callback(
-    Output('div_exemplo', 'children'),
+    Output('div_table_chamados', 'children'),
     Input('input-horas', 'value'),
     Input('select-tabel', 'value'),
     Input('interval4', 'n_intervals'),
@@ -399,6 +420,37 @@ def table_card_chamados(horas, value_selected, n_intervals):
             "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
 
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
+
+
+@app.callback(
+    Output('div_table_chamados_por_dias_ultima_acao', 'children'),
+    Input('store', 'data'),
+    Input('select-operadores', 'value'),
+    Input('range-slider', 'value'),
+)
+def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
+    df_ultimasAcoes = pd.DataFrame(data)
+
+    min = int(value_range[0])
+    max = int(value_range[1])
+
+    if operador_selected == 'Todos':
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
+        # print(df_ultimasAcoes)
+        print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
+            value_range, type(value_range), type(min), type(max)))
+    else:
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (df_ultimasAcoes['OPERADOR'] == operador_selected)]
+
+    df_ultimasAcoes.sort_values(
+        "DIAS_ULTIMA_INTERACAO_OPERADOR", ascending=False)
+
+    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+        "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
+
+    return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
 
 
 # ================= Run Server ================== #
