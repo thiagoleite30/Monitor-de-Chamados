@@ -452,7 +452,7 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
     columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
         "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
     
-    columns[2]["name"] = "Dias"
+    columns[2]["name"] = "DIAS"
 
     return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
 
