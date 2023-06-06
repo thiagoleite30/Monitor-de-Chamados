@@ -417,8 +417,10 @@ def table_card_chamados(horas, value_selected, n_intervals):
                            Autenticacao.user(), Autenticacao.key())
         df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
         columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
-            "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
-
+            "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
+        
+        columns[3]["name"] = "HORAS RESTANTES"
+        
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
 
 # Callback de update de tabela com chamados sem ação dos operadores
@@ -459,4 +461,4 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=80, host='0.0.0.0')
+    app.run_server(debug=True, port=80, host='0.0.0.0')
