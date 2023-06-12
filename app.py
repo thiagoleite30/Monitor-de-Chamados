@@ -10,7 +10,7 @@ import dash_loading_spinners as dls
 from flask import Flask
 
 from callTopDesk.callTopDesk import chamados
-from autenticacao import Autenticacao as autenticacao
+from autenticacao import Autenticacao_TopDesk as autenticacao
 
 Autenticacao = autenticacao()
 
@@ -180,13 +180,41 @@ app.layout = dbc.Container(children=[
                     html.H4("Agendamentos"),
                     dbc.Row([
                         dbc.Col([
+<<<<<<< Updated upstream
                             html.Div(id="container-table-df")
+=======
+                            html.H4("Chamados Agendados Do Dia")
                         ]),
                     ]),
                 ]),
             ], style=tab_card),
         ], sm=12, md=12, lg=4),
 
+    ], className='main_row g-2 my-auto'),
+
+    # Row 3 - Nova Row
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4(
+                                "Tabela Chamados/Dias Sem Interação do Operador"),
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados_por_dias_ultima_acao", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table2",
+                            ),
+>>>>>>> Stashed changes
+                        ]),
+                    ]),
+                ]),
+            ], style=tab_card),
+        ], sm=12, md=12, lg=8),
     ], className='main_row g-2 my-auto'),
     dcc.Store(id="store")
 ], fluid=True, style={"height": "100%"})
@@ -343,6 +371,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 
 @app.callback(
+<<<<<<< Updated upstream
     Output('container-table-df', 'children'),
     [
      Input(ThemeSwitchAIO.ids.switch("theme"), "value")
@@ -357,6 +386,72 @@ def agendamento_card(toggle):
              "Hora Agendamento": ["15:30", "15:45", "15:45", "15:50"]
          })
     return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True) # type: ignore
+=======
+    Output('div_table_chamados', 'children'),
+    Input('input-horas', 'value'),
+    Input('select-tabel', 'value'),
+    Input('interval4', 'n_intervals'),
+)
+def table_card_chamados(horas, value_selected, n_intervals):
+    print(
+        f"\n\n\n********* O VALUE É {value_selected} o TYPE é {type(value_selected)} NESTE CALLBACK *******\n")
+    if value_selected == "Chamados Respondidos" or value_selected == "2":
+        topDesk = chamados('https://rioquente.topdesk.net/tas/api',
+                           Autenticacao.user(), Autenticacao.key())
+        df_chamados = topDesk.chamadosSLACorrenteDataFrame()
+        df = df_chamados[df_chamados['STATUS'] == 'Respondido pelo usuário']
+
+        columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+            "name": i, "id": i} for i in df[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE"]].columns]
+
+        return dt.DataTable(df.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
+    elif value_selected == "Chamados Vencendo" or value_selected == "1":
+        print(f'\n\n*************CHAMADOS VENCENDO****************\n\n')
+        topDesk = chamados('https://rioquente.topdesk.net/tas/api',
+                           Autenticacao.user(), Autenticacao.key())
+        df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
+        columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+            "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
+
+        columns[3]["name"] = "HORAS RESTANTES"
+
+        return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
+
+# Callback de update de tabela com chamados sem ação dos operadores
+
+
+@app.callback(
+    Output('div_table_chamados_por_dias_ultima_acao', 'children'),
+    Input('store', 'data'),
+    Input('select-operadores', 'value'),
+    Input('range-slider', 'value'),
+)
+def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
+    df_ultimasAcoes = pd.DataFrame(data)
+
+    min = int(value_range[0])
+    max = int(value_range[1])
+
+    if operador_selected == 'Todos':
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max)]
+        # print(df_ultimasAcoes)
+        print('Minimo {}\nMaximo {}\nMIN {}\nMAX {}'.format(
+            value_range, type(value_range), type(min), type(max)))
+    else:
+        df_ultimasAcoes = df_ultimasAcoes[(df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] >= min) & (
+            df_ultimasAcoes['DIAS_ULTIMA_INTERACAO_OPERADOR'] <= max) & (df_ultimasAcoes['OPERADOR'] == operador_selected)]
+
+    df_ultimasAcoes.sort_values(
+        "DIAS_ULTIMA_INTERACAO_OPERADOR", ascending=False)
+
+    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+        "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
+
+    columns[2]["name"] = "DIAS"
+
+    return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
+>>>>>>> Stashed changes
 
 
 # ================= Run Server ================== #

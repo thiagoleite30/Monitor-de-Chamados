@@ -5,9 +5,13 @@ import numpy as np
 import jmespath
 from datetime import timezone
 import datetime as dt
+from dateutil import parser
 import time
 from pandarallel import pandarallel
+import pytz
+from openAI.openAI import ChatGPT as chatgpt
 
+ChatGPT = chatgpt()
 
 pandarallel.initialize(progress_bar=True)
 
@@ -23,8 +27,6 @@ class chamados:
         self._header = {'Authorization': 'Basic {}'.format(self._chave)}
 
     # Retorna chamados abertos
-    def mostra(self):
-        print(self._chave)
 
     def conexao(self, incrementoBusca=''):
         if requests.get(self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header).status_code == 200:
@@ -47,7 +49,7 @@ class chamados:
                 self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header)
         elif requests.get(self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header).status_code == 404:
             return '404: Não encontrado', requests.get(self._topdesk_url + '/incidents' + incrementoBusca,
-                                                        headers=self._header)
+                                                       headers=self._header)
         elif requests.get(self._topdesk_url + '/incidents' + incrementoBusca, headers=self._header).status_code == 500:
             return '500: Erro do Servidor Interno', requests.get(self._topdesk_url + '/incidents' + incrementoBusca,
                                                                  headers=self._header)
@@ -60,6 +62,13 @@ class chamados:
                                                 'operatorGroup.name=="TI - Service Desk",operatorGroup.name=="TI - '
                                                 'Field Service",operatorGroup.name=="TI - Service Desk (N2)");('
                                                 'callType.name==Requisição,callType.name==Incidente)',
+                            headers=self._header)
+
+    def chamados_agendados_com_usuario(self):
+        return requests.get(self._topdesk_url + '/incidents?page_size=10000&query=completed==False;('
+                            'operatorGroup.name=="TI - Service Desk",operatorGroup.name=="TI - '
+                            'Field Service",operatorGroup.name=="TI - Service Desk (N2)");('
+                            'callType.name==Requisição,callType.name==Incidente)',
                             headers=self._header)
 
     def chamadosSLACorrenteDataFrame(self):
@@ -137,7 +146,7 @@ class chamados:
     def get_date_last_action(self, x):
         import requests
         import pandas as pd
-        from autenticacao import Autenticacao as autenticacao
+        from autenticacao import Autenticacao_TopDesk as autenticacao
         Autenticacao = autenticacao()
         query_inicio = 'http://rioquente.topdesk.net'
 
@@ -198,3 +207,72 @@ class chamados:
             row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
         print(df_tmp)
         return df_tmp
+
+    # Aqui obtemos o Data Frame com os agendamentos já com a coluna de data e hora
+
+    def DF_Agendamentos(self):
+        expression = """{
+        NIVEL: status,
+        NUMERO_CHAMADO: number,
+        TIPO_CHAMADO: callType.name,
+        SOLICITANTE: caller.dynamicName,
+        CATEGORIA: category.name,
+        SUBCATEGORIA: subcategory.name,
+        DATA_ABERTURA: callDate,
+        DATA_ALVO: targetDate,
+        GRUPO_OPERADOR: operatorGroup.name,
+        OPERADOR: operator.name,
+        FORNECEDOR: supplier.name,
+        STATUS: processingStatus.name,
+        ACOES: action
+        }
+        """
+        list_expression = []
+        for i in self.chamados_agendados_com_usuario():
+            list_expression.append(jmespath.compile(expression).search(i))
+
+        df_chamados_agendados = pd.DataFrame(list_expression, columns=['NUMERO_CHAMADO', 'NIVEL', 'TIPO_CHAMADO',
+                                                                       'SOLICITANTE', 'CATEGORIA',
+                                                                       'SUBCATEGORIA', 'DATA_ABERTURA',
+                                                                       'DATA_ALVO', 'GRUPO_OPERADOR',
+                                                                       'OPERADOR', 'FORNECEDOR',
+                                                                       'STATUS', 'ACOES'])
+
+        df_chamados_agendados['DATA_AGENDAMENTO'] = df_chamados_agendados['ACOES'].apply(
+            lambda x: self.percorre_acoes_agendamento(x))
+
+    def percorre_acoes_agendamento(self, query):
+        query_inicio = 'http://rioquente.topdesk.net'
+        print(query)
+        response = requests.get(query_inicio+query, headers=self._header)
+        # print(response.json())
+        if response.status_code == 200:
+            for acao in range(len(response.json())):
+                if (response.json()[acao]['invisibleForCaller'] == False) and (response.json()[acao]['operator'] != None):
+                    print(response.json()[acao]['plainText'])
+                    data = dt.datetime.strptime(
+                        response.json()[acao]['creationDate'], '%Y-%m-%dT%H:%M:%S.%f%z')
+                    fuso_horario_destino = pytz.timezone('America/Sao_Paulo')
+                    pergunta = f'O texto foi criado em {str(data.astimezone(fuso_horario_destino))} (use esta data somente como referência para compreender o agendamento): considerando o texto, para qual data foi agendado? Quero a resposta resumida formato dd/mm/YYYY HH:MM:SS'
+                    resposta = ChatGPT.get_response(
+                        pergunta, response.json()[acao]['plainText'])
+                    try:
+                        data_hora = parser.parse(
+                            resposta.choices[0].text, dayfirst=True)
+                        if data_hora.astimezone(fuso_horario_destino) < data.astimezone(fuso_horario_destino):
+                            data_hora = ''
+                            print(f'\nHora vazia')
+                        data_hora_str = str(data_hora)
+                        print(f'A data e hora do agendamento foi: {data_hora_str}')
+                    except Exception as e:
+                        print(f'Deu o seguinte erro {e}')
+                        continue
+                elif acao < len(response.json()) - 1:
+                    continue
+                else:
+                    data_hora_str = ''
+                    break
+        elif response.status_code == 204:
+            data_hora_str = ''
+
+        return data_hora_str
