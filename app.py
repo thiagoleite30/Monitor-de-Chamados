@@ -1,5 +1,6 @@
 import dash
 from dash import html, dcc, Input, Output, State
+from dash import dash_table as dt
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
@@ -16,9 +17,10 @@ Autenticacao = autenticacao()
 
 # ===================== App ===================== #
 FONT_AWESOME = ["https://use.fontawesome.com/releases/v5.10.2/css/all.css"]
-# dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates@v1.0.4/dbc.min.css"
+dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
-app = dash.Dash(__name__, external_stylesheets=FONT_AWESOME)
+app = dash.Dash(__name__, external_stylesheets=[
+                FONT_AWESOME, dbc.themes.BOOTSTRAP, dbc_css], title="Monitor de Chamados")
 app.scripts.config.serve_locally = True
 server = app.server
 
@@ -95,11 +97,11 @@ app.layout = dbc.Container(children=[
                                 dbc.Input(id="input-horas", placeholder="Horas para vencimento", disabled=False,
                                           value=24, type="number", min=0, className="dbc"),
                             ]),
-                        ])
+                        ], style={"width": True}),
                     ])
                 ])
             ], style=tab_card),
-        ], sm=12, md=12, lg=5),
+        ], sm=12, md=12, lg=3),
 
         # Col 3 - Card contendo gráfico de chamados respondidos
         dbc.Col([
@@ -111,11 +113,44 @@ app.layout = dbc.Container(children=[
                             dcc.Graph(
                                 id="graph-pie2", config={"displayModeBar": False, "showTips": False}),
                             dcc.Interval(id="interval2", interval=15000),
+                        ], style={"width": True}),
+                    ]),
+                ]),
+            ], style=tab_card),
+        ], sm=12, md=12, lg=3),
+
+        # Col 4 - Card contendo tabela de chamados vencendo ou respondidos com link
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Interval(id="interval4", interval=120000),
+                            html.H4('Tabela de chamados'),
+                            dbc.InputGroup([
+                                dbc.Select(
+                                    id='select-tabel',
+                                    options=[
+                                        {'label': 'Chamados Vencendo', 'value': 1},
+                                        {'label': 'Chamados Respondidos', 'value': 2},
+                                    ],
+                                    disabled=False,
+                                    value='Chamados Vencendo',
+                                ),
+                            ], style={"margin-bottom": "10px"}),
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table",
+                            ),
                         ]),
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=5),
+        ], sm=12, md=12, lg=4),
     ], class_name="main_row g-2 my-auto", style={'margin-top': '7px'}),  # Fim da Row 1
 
     # Row 2 - Abraça o gráfico de chamados sem interação do operador
@@ -123,52 +158,57 @@ app.layout = dbc.Container(children=[
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(
-                        "Chamados/Dias Sem Interação do Operador de Service Desk"),
                     dbc.Row([
                         dbc.Col([
-                            dbc.InputGroup([
-                                html.Legend("Selecione Operador: "),
-                                dbc.Select(
-                                    id='select-operadores',
-                                    options=[
-                                        {'label': 'Todos', 'value': 1},
-                                    ],
-                                    disabled=True,
-                                    value='Todos',
-                                ),
-                            ]),
-                        ]),
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dls.Pacman(
-                                [
-                                    dcc.Graph(id="graph-chamados-acoes",
-                                              config={
-                                                  "displayModeBar": False,
-                                                  "showTips": False},
-                                              style={"margin-top": "30px"}),],
-                                color="#D9F028",
-                                width=100,
-                                speed_multiplier=1,
-                                show_initially=True,
-                                id="loading-store",
-                            ),
-                        ]),
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Form([
-                                html.Div([
-
-                                    dbc.Label("Intervalo de Dias",
-                                              html_for="range-slider"),
-                                    dcc.RangeSlider(id="range-slider",
-                                                    min=None, max=None, step=30),
+                            html.H4(
+                                "Chamados/Dias Sem Interação do Operador"),
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.InputGroup([
+                                        html.Legend("Selecione Operador: "),
+                                        dbc.Select(
+                                            id='select-operadores',
+                                            options=[
+                                                {'label': 'Todos', 'value': 1},
+                                            ],
+                                            disabled=True,
+                                            value='Todos',
+                                        ),
+                                    ]),
                                 ]),
-                                dcc.Interval(id="interval3", interval=1800000),
-                            ], style={"margin-top": "10px"}),
+                            ]),
+                            dbc.Row([
+                                dbc.Col([
+                                    dls.Pacman(
+                                        [
+                                            dcc.Graph(id="graph-chamados-acoes",
+                                                      config={
+                                                          "displayModeBar": False,
+                                                          "showTips": False},
+                                                      style={"margin-top": "30px"}),],
+                                        color="#D9F028",
+                                        width=100,
+                                        speed_multiplier=1,
+                                        show_initially=True,
+                                        id="loading-store",
+                                    ),
+                                ]),
+                            ]),
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.Form([
+                                        html.Div([
+
+                                            dbc.Label("Intervalo de Dias",
+                                                      html_for="range-slider"),
+                                            dcc.RangeSlider(id="range-slider",
+                                                            min=None, max=None, step=30),
+                                        ]),
+                                        dcc.Interval(id="interval3",
+                                                     interval=1800000),
+                                    ], style={"margin-top": "10px"}),
+                                ]),
+                            ]),
                         ]),
                     ]),
                 ]),
@@ -177,13 +217,25 @@ app.layout = dbc.Container(children=[
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Agendamentos"),
                     dbc.Row([
                         dbc.Col([
+<<<<<<< HEAD
 <<<<<<< Updated upstream
                             html.Div(id="container-table-df")
 =======
                             html.H4("Chamados Agendados Do Dia")
+=======
+                            html.H4(
+                                "Tabela Chamados/Dias Sem Interação do Operador"),
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados_por_dias_ultima_acao", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table2",
+                            ),
+>>>>>>> 3b428bb14cc3de75e51c3730b28f3f11175970db
                         ]),
                     ]),
                 ]),
@@ -257,6 +309,7 @@ def render_graphs_chamados_prox_fim(n_intervals, horas, toggle):
             l=0, r=0, t=20, b=20), height=300, template=template)
         return fig, '"Chamados com vencimento nas próximas {} horas" (Por Operador): '.format(horas)
 
+
 # Callback - Renderiza o gráfico de chamados respondidos
 
 
@@ -291,6 +344,7 @@ def render_graphs_chamados_respondidos(n_intervals, toggle):
         fig.update_layout(margin=dict(
             l=0, r=0, t=40, b=20), height=300, template=template)
         return fig
+
 
 # CallBack - Aqui geramos o DF e guardamos no store que será armazenado no cash do navegador do usuário
 
@@ -371,6 +425,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
 
 @app.callback(
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     Output('container-table-df', 'children'),
     [
@@ -392,6 +447,13 @@ def agendamento_card(toggle):
     Input('select-tabel', 'value'),
     Input('interval4', 'n_intervals'),
 )
+=======
+    Output('div_table_chamados', 'children'),
+    Input('input-horas', 'value'),
+    Input('select-tabel', 'value'),
+    Input('interval4', 'n_intervals'),
+)
+>>>>>>> 3b428bb14cc3de75e51c3730b28f3f11175970db
 def table_card_chamados(horas, value_selected, n_intervals):
     print(
         f"\n\n\n********* O VALUE É {value_selected} o TYPE é {type(value_selected)} NESTE CALLBACK *******\n")
@@ -412,9 +474,15 @@ def table_card_chamados(horas, value_selected, n_intervals):
         df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
         columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
             "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
+<<<<<<< HEAD
 
         columns[3]["name"] = "HORAS RESTANTES"
 
+=======
+        
+        columns[3]["name"] = "HORAS RESTANTES"
+        
+>>>>>>> 3b428bb14cc3de75e51c3730b28f3f11175970db
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
 
 # Callback de update de tabela com chamados sem ação dos operadores
@@ -447,13 +515,20 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
 
     columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
         "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
+<<<<<<< HEAD
 
     columns[2]["name"] = "DIAS"
 
     return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
 >>>>>>> Stashed changes
+=======
+    
+    columns[2]["name"] = "DIAS"
+
+    return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
+>>>>>>> 3b428bb14cc3de75e51c3730b28f3f11175970db
 
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=True, port=80, host='0.0.0.0')
+    app.run_server(debug=False, port=80, host='0.0.0.0')

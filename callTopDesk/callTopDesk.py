@@ -132,17 +132,31 @@ class chamados:
             df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = int(
                 diff_seconds / 3600)
 
+        # Pegar link de chamados e transformar em Markdown
+        df_chamados['CHAMADO (LINK)'] = '[' + df_chamados['NUMERO_CHAMADO'] + \
+            '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_chamados['NUMERO_CHAMADO'] + ')'
+
+        # Abreviar nomes de operadores
+        df_chamados['OPERADOR'] = df_chamados['OPERADOR'].apply(lambda x: x.split(
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Field Service' else x)
+
+        # Abreviar nomes dos solicitantes
+        df_chamados['SOLICITANTE'] = df_chamados['SOLICITANTE'].apply(
+            lambda x: x.split()[0] + ' ' + x.split()[-1])
+
         return df_chamados
 
     def filtroChamadosProxFim(self, horas=1000):
         df_chamados = self.chamadosSLACorrenteDataFrame()
-        return df_chamados[(df_chamados['TEMPO_RESTANTE'] >= 0) & (df_chamados['TEMPO_RESTANTE'] < horas) &
+        return df_chamados[(df_chamados['TEMPO_RESTANTE'] > 0.01) & (df_chamados['TEMPO_RESTANTE'] < horas) &
                            ((df_chamados['STATUS'] != 'Pendente Fornecedor') & (df_chamados['STATUS'] != 'Pendente cliente') &
                             (df_chamados['STATUS'] != 'Pendente análise do problema') & (df_chamados['STATUS'] != 'Pendente análise do problema') &
                             (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização') &
                             (df_chamados['STATUS'] != 'Agendado com o Usuário'))].sort_values(by='TEMPO_RESTANTE')
 
     # Aqui ele busca a data da ultima interação de fato de um operador com o cliente
+    # Método faz paralelismo para dividir o DataFrame em partes (dividido pelo número de cores do processador)
     def get_date_last_action(self, x):
         import requests
         import pandas as pd
@@ -169,15 +183,15 @@ class chamados:
         # print(x.ACOES)
         response = requests.get(query_inicio+x.ACOES, headers=header)
         if response.status_code == 204:
-            #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
+            # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
             return pd.to_datetime('')
         elif (response.status_code == 200) or (response.status_code == 206):
             data = percorre_acoes(response)
             if data != None:
-                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, data))
+                # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, data))
                 return data
             else:
-                #print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
+                # print('Chamado {} data ultima interação {}!'.format(df.NUMERO_CHAMADO, pd.to_datetime('')))
                 return pd.to_datetime('')
 
     # Aqui ele calcula os dias desde a ultima interação do operador
@@ -198,14 +212,24 @@ class chamados:
         df_tmp['DATA_ALVO'] = pd.to_datetime(
             df_tmp['DATA_ALVO']).dt.tz_convert('America/Sao_Paulo')
 
+        """
         df_tmp['LINK'] = 'https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
             df_tmp['NUMERO_CHAMADO']
+        """
+        # Pegar link de chamados e transformar em Markdown
+        df_tmp['CHAMADO (LINK)'] = '[' + df_tmp['NUMERO_CHAMADO'] + \
+            '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_tmp['NUMERO_CHAMADO'] + ')'
 
-        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(self.get_date_last_action, axis=1)  # type: ignore
+        df_tmp['DATA_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.parallel_apply(
+            self.get_date_last_action, axis=1)  # type: ignore
 
         df_tmp['DIAS_ULTIMA_INTERACAO_OPERADOR'] = df_tmp.apply(lambda row: self.calcula_dias_acao(
             row[['DATA_ABERTURA', 'DATA_ULTIMA_INTERACAO_OPERADOR']]), axis=1)
-        print(df_tmp)
+
+        df_tmp['OPERADOR'] = df_tmp['OPERADOR'].apply(lambda x: x.split(
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
+        # print(df_tmp)
         return df_tmp
 
     # Aqui obtemos o Data Frame com os agendamentos já com a coluna de data e hora
