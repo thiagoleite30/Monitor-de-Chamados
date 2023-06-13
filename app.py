@@ -11,7 +11,7 @@ import dash_loading_spinners as dls
 from flask import Flask
 
 from callTopDesk.callTopDesk import chamados
-from autenticacao import Autenticacao as autenticacao
+from autenticacao import Autenticacao_TopDesk as autenticacao
 
 Autenticacao = autenticacao()
 
@@ -461,4 +461,4 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
 
 # ================= Run Server ================== #
 if __name__ == '__main__':
-    app.run_server(debug=False, port=80, host='0.0.0.0')
+    app.run_server(debug=True, port=80, host='0.0.0.0')
