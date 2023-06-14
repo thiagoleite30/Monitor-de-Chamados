@@ -27,9 +27,9 @@ server = app.server
 df = pd.DataFrame()
 
 # =================== Styles ==================== #
-template_theme1 = "minty"
+template_theme1 = "lux"
 template_theme2 = "vapor"
-url_theme1 = dbc.themes.MINTY
+url_theme1 = dbc.themes.LUX
 url_theme2 = dbc.themes.VAPOR
 
 tab_card = {"height": "100%"}
@@ -213,7 +213,19 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=8),
+        ], sm=12, md=12, lg=6),
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+
+                ]),
+            ], style=tab_card),
+        ], sm=12, md=12, lg=6),
+
+    ], className='main_row g-2 my-auto'),
+
+    # Row 3
+    dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
@@ -233,9 +245,9 @@ app.layout = dbc.Container(children=[
                     ]),
                 ]),
             ], style=tab_card),
-        ], sm=12, md=12, lg=4),
-
+        ], sm=12, md=12, lg=6),
     ], className='main_row g-2 my-auto'),
+
     dcc.Store(id="store")
 ], fluid=True, style={"height": "100%"})
 
@@ -418,9 +430,9 @@ def table_card_chamados(horas, value_selected, n_intervals):
         df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
         columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
             "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
-        
+
         columns[3]["name"] = "HORAS RESTANTES"
-        
+
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
 
 # Callback de update de tabela com chamados sem ação dos operadores
@@ -453,7 +465,7 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
 
     columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
         "name": i, "id": i} for i in df_ultimasAcoes[["CHAMADO (LINK)", "OPERADOR", "DIAS_ULTIMA_INTERACAO_OPERADOR"]].columns]
-    
+
     columns[2]["name"] = "DIAS"
 
     return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})

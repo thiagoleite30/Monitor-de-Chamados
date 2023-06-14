@@ -151,7 +151,7 @@ class chamados:
     def get_date_last_action(self, x):
         import requests
         import pandas as pd
-        from autenticacao import Autenticacao as autenticacao
+        from autenticacao import Autenticacao_TopDesk as autenticacao
         Autenticacao = autenticacao()
         query_inicio = 'http://rioquente.topdesk.net'
 
