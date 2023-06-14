@@ -118,10 +118,9 @@ class chamados:
             # print(idx[1]['NUMERO_CHAMADO'])
             dt_data_alvo = dt.datetime.fromtimestamp(
                 idx[1]['DATA_ALVO'].timestamp())
-            diff_seconds = (dt_data_alvo - dt_data_now).total_seconds()
-            idx[1]['TEMPO_RESTANTE'] = int(diff_seconds / 3600)
-            df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = int(
-                diff_seconds / 3600)
+            diff_seconds = (dt_data_alvo.timestamp() - dt_data_now.timestamp())
+            idx[1]['TEMPO_RESTANTE'] = diff_seconds / 3600
+            df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = diff_seconds / 3600
 
         # Pegar link de chamados e transformar em Markdown
         df_chamados['CHAMADO (LINK)'] = '[' + df_chamados['NUMERO_CHAMADO'] + \
@@ -140,7 +139,7 @@ class chamados:
 
     def filtroChamadosProxFim(self, horas=1000):
         df_chamados = self.chamadosSLACorrenteDataFrame()
-        return df_chamados[(df_chamados['TEMPO_RESTANTE'] > 0.01) & (df_chamados['TEMPO_RESTANTE'] < horas) &
+        return df_chamados[(df_chamados['TEMPO_RESTANTE'] > 0) & (df_chamados['TEMPO_RESTANTE'] < horas) &
                            ((df_chamados['STATUS'] != 'Pendente Fornecedor') & (df_chamados['STATUS'] != 'Pendente cliente') &
                             (df_chamados['STATUS'] != 'Pendente análise do problema') & (df_chamados['STATUS'] != 'Pendente análise do problema') &
                             (df_chamados['STATUS'] != 'Pendente análise') & (df_chamados['STATUS'] != 'Pendente autorização') &

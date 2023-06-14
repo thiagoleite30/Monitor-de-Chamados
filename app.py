@@ -401,7 +401,7 @@ def render_graphs_chamados_p_dias_sem_interacao(data, n_intervals, value_range, 
 
     return fig
 
-# Callback Agendamentos
+# Callback Tabela de chamados vencendo e respondidos
 
 
 @app.callback(
@@ -428,6 +428,7 @@ def table_card_chamados(horas, value_selected, n_intervals):
         topDesk = chamados('https://rioquente.topdesk.net/tas/api',
                            Autenticacao.user(), Autenticacao.key())
         df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
+        df_chamados_ProxFim["TEMPO_RESTANTE"] = df_chamados_ProxFim["TEMPO_RESTANTE"].apply(lambda x: int(x))
         columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
             "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
 
