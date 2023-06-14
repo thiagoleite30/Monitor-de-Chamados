@@ -27,9 +27,9 @@ server = app.server
 df = pd.DataFrame()
 
 # =================== Styles ==================== #
-template_theme1 = "minty"
+template_theme1 = "lux"
 template_theme2 = "vapor"
-url_theme1 = dbc.themes.MINTY
+url_theme1 = dbc.themes.LUX
 url_theme2 = dbc.themes.VAPOR
 
 tab_card = {"height": "100%"}
