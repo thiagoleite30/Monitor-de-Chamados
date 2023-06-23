@@ -217,7 +217,20 @@ app.layout = dbc.Container(children=[
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4(
+                                "Chamados Agendados"),
+                            dls.Pacman([
+                                html.Div(id="div_table_chamados_agendados", className="dbc")],
+                                color="#D9F028",
+                                width=100,
+                                speed_multiplier=1,
+                                show_initially=True,
+                                id="loading-table2",
+                            ),
+                        ]),
+                    ]),
                 ]),
             ], style=tab_card),
         ], sm=12, md=12, lg=6),
@@ -428,13 +441,15 @@ def table_card_chamados(horas, value_selected, n_intervals):
         topDesk = chamados('https://rioquente.topdesk.net/tas/api',
                            Autenticacao.user(), Autenticacao.key())
         df_chamados_ProxFim = topDesk.filtroChamadosProxFim(horas)
-        df_chamados_ProxFim["TEMPO_RESTANTE"] = df_chamados_ProxFim["TEMPO_RESTANTE"].apply(lambda x: int(x))
+        df_chamados_ProxFim["TEMPO_RESTANTE"] = df_chamados_ProxFim["TEMPO_RESTANTE"].apply(
+            lambda x: int(x))
         columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
             "name": i, "id": i} for i in df_chamados_ProxFim[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "TEMPO_RESTANTE"]].columns]
 
         columns[3]["name"] = "HORAS RESTANTES"
 
         return dt.DataTable(df_chamados_ProxFim.to_dict("records"), columns, filter_action="native", page_size=5, style_cell={"textAlign": "center", "padding": "5px"})
+
 
 # Callback de update de tabela com chamados sem ação dos operadores
 
@@ -470,6 +485,23 @@ def table_chamados_por_dia_ultima_acao(data, operador_selected, value_range):
     columns[2]["name"] = "DIAS"
 
     return dt.DataTable(df_ultimasAcoes.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
+
+# Call Back para update de tabela com agendamentos
+
+
+@app.callback(
+    Output('div_table_chamados_agendados', 'children'),
+    Input('interval4', 'n_intervals'),
+)
+def table_chamados_agendados(n_intervals):
+    topDesk = chamados('https://rioquente.topdesk.net/tas/api',
+                       Autenticacao.user(), Autenticacao.key())
+    df = topDesk.chamadosAgendadosDataFrame()
+    print(f"*********************************************************************\nSEGUE O DF AGENDAMENTOS:\n")
+    columns = [{"name": i, "id": i, "presentation": "markdown"} if i == "CHAMADO (LINK)" else {
+        "name": i, "id": i} for i in df[["CHAMADO (LINK)", "OPERADOR", "SOLICITANTE", "DATA_AGENDAMENTO"]].columns]
+
+    return dt.DataTable(df.to_dict("records"), columns, filter_action="native", page_size=13, style_cell={"textAlign": "center", "padding": "2px"})
 
 
 # ================= Run Server ================== #

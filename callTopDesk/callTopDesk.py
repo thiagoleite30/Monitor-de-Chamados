@@ -1,3 +1,4 @@
+import pytz
 import requests
 import base64
 import pandas as pd
@@ -7,7 +8,11 @@ from datetime import timezone
 import datetime as dt
 import time
 from pandarallel import pandarallel
+from dateutil import parser
 
+from chatgpt.chatgpt import chatgpt
+
+ChatGPT = chatgpt()
 
 pandarallel.initialize(progress_bar=True)
 
@@ -21,6 +26,22 @@ class chamados:
         self._chave = base64.b64encode(
             (self._operador + ':' + chave).encode('utf-8')).decode('utf-8')
         self._header = {'Authorization': 'Basic {}'.format(self._chave)}
+        self._expression = """{
+            NIVEL: status,
+            NUMERO_CHAMADO: number,
+            TIPO_CHAMADO: callType.name,
+            SOLICITANTE: caller.dynamicName,
+            CATEGORIA: category.name,
+            SUBCATEGORIA: subcategory.name,
+            DATA_ABERTURA: callDate,
+            DATA_ALVO: targetDate,
+            GRUPO_OPERADOR: operatorGroup.name,
+            OPERADOR: operator.name,
+            FORNECEDOR: supplier.name,
+            STATUS: processingStatus.name,
+            ACOES: action
+            }
+            """
 
     # Retorna chamados abertos
     def mostra(self):
@@ -61,27 +82,19 @@ class chamados:
                                                 'Field Service",operatorGroup.name=="TI - Service Desk (N2)");('
                                                 'callType.name==Requisição,callType.name==Incidente)',
                             headers=self._header)
+    
+    def chamadosAgendados(self):
+        return requests.get(self._topdesk_url + '/incidents?page_size=10000&query=completed==False;('
+                                                'operatorGroup.name=="TI - Service Desk",operatorGroup.name=="TI - '
+                                                'Field Service",operatorGroup.name=="TI - Service Desk (N2)");('
+                                                'callType.name==Requisição,callType.name==Incidente);(processingStatus.name=="Agendado com o Usuário")',
+                            headers=self._header)
 
     def chamadosSLACorrenteDataFrame(self):
-        expression = """{
-        NIVEL: status,
-        NUMERO_CHAMADO: number,
-        TIPO_CHAMADO: callType.name,
-        SOLICITANTE: caller.dynamicName,
-        CATEGORIA: category.name,
-        SUBCATEGORIA: subcategory.name,
-        DATA_ABERTURA: callDate,
-        DATA_ALVO: targetDate,
-        GRUPO_OPERADOR: operatorGroup.name,
-        OPERADOR: operator.name,
-        FORNECEDOR: supplier.name,
-        STATUS: processingStatus.name,
-        ACOES: action
-        }
-        """
         list_expression = []
         for i in self.chamadosSLACorrente().json():
-            list_expression.append(jmespath.compile(expression).search(i))
+            list_expression.append(
+                jmespath.compile(self._expression).search(i))
 
         # Inserindo list no Data Frame
         df_chamados = pd.DataFrame(list_expression, columns=['NUMERO_CHAMADO', 'NIVEL', 'TIPO_CHAMADO',
@@ -120,7 +133,8 @@ class chamados:
                 idx[1]['DATA_ALVO'].timestamp())
             diff_seconds = (dt_data_alvo.timestamp() - dt_data_now.timestamp())
             idx[1]['TEMPO_RESTANTE'] = diff_seconds / 3600
-            df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = diff_seconds / 3600
+            df_chamados.loc[df_chamados['NUMERO_CHAMADO'] == idx[1]
+                            ['NUMERO_CHAMADO'], 'TEMPO_RESTANTE'] = diff_seconds / 3600
 
         # Pegar link de chamados e transformar em Markdown
         df_chamados['CHAMADO (LINK)'] = '[' + df_chamados['NUMERO_CHAMADO'] + \
@@ -221,3 +235,84 @@ class chamados:
         )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Fild Service' else x)
         # print(df_tmp)
         return df_tmp
+
+    # Percorre as ações no chamado e passa para a função do Chat GPT interpretar os textos e extrair hora
+    def percorre_acoes_agendamento(self, query):
+        query_inicio = 'http://rioquente.topdesk.net'
+        print(query)
+        response = requests.get(query_inicio+query, headers=self._header)
+        # print(response.json())
+        if response.status_code == 200:
+            for acao in range(len(response.json())):
+                if (response.json()[acao]['invisibleForCaller'] == False) and (response.json()[acao]['operator'] != None):
+                    print(response.json()[acao]['plainText'])
+                    data = dt.datetime.strptime(
+                        response.json()[acao]['creationDate'], '%Y-%m-%dT%H:%M:%S.%f%z')
+                    fuso_horario_destino = pytz.timezone('America/Sao_Paulo')
+                    pergunta = f'O texto foi criado em {str(data.astimezone(fuso_horario_destino))} (use esta data somente como referência para compreender o agendamento): considerando o texto, para qual data foi agendado? Quero a resposta resumida formato dd/mm/YYYY HH:MM:SS'
+                    resposta = ChatGPT.get_response(
+                        pergunta, response.json()[acao]['plainText'])
+                    try:
+                        data_hora = parser.parse(resposta, dayfirst=True)
+                        if data_hora.astimezone(fuso_horario_destino) < data.astimezone(fuso_horario_destino):
+                            data_hora = ''
+                            print(f'\nHora vazia')
+                        print(f'A data e hora do agendamento foi: {data_hora}')
+                        return data_hora
+                    except Exception as e:
+                        print(f'Deu o seguinte erro {e}')
+                        data_hora = ''
+                        return data_hora
+                        continue
+                elif acao < len(response.json()) - 1:
+                    data_hora = ''
+                    return data_hora
+                    continue
+                else:
+                    data_hora = ''
+                    return data_hora
+                    break
+        elif response.status_code == 204:
+            data_hora = ''
+            return data_hora
+
+    def chamadosAgendadosDataFrame(self):
+        list_expression = []
+        for i in self.chamadosAgendados().json():
+            list_expression.append(
+                jmespath.compile(self._expression).search(i))
+        # Inserindo list no DF
+        df_chamados_agendados = pd.DataFrame(list_expression, columns=['NUMERO_CHAMADO', 'NIVEL', 'TIPO_CHAMADO',
+                                                                       'SOLICITANTE', 'CATEGORIA',
+                                                                       'SUBCATEGORIA', 'DATA_ABERTURA',
+                                                                       'DATA_ALVO', 'GRUPO_OPERADOR',
+                                                                       'OPERADOR', 'FORNECEDOR',
+                                                                       'STATUS', 'ACOES'])
+        df_chamados_agendados['DATA_AGENDAMENTO'] = ''
+
+        print(f"*************************************************** ENTROU NO METODO DF CHAMADOS AGENDADOS *********************************************\n\n\n")
+
+        df_chamados_agendados['DATA_AGENDAMENTO'] = df_chamados_agendados['ACOES'].apply(
+            lambda x: self.percorre_acoes_agendamento(x))
+
+        df_chamados_agendados['DATA_AGENDAMENTO'] = pd.to_datetime(
+            df_chamados_agendados['DATA_AGENDAMENTO'])
+        
+        df_chamados_agendados.sort_values(by='DATA_AGENDAMENTO', ascending=True, inplace=True)
+        
+        df_chamados_agendados['DATA_AGENDAMENTO'] = pd.to_datetime(df_chamados_agendados['DATA_AGENDAMENTO']).dt.strftime("%d/%m/%Y %H:%M:%S")
+
+        # Pegar link de chamados e transformar em Markdown
+        df_chamados_agendados['CHAMADO (LINK)'] = '[' + df_chamados_agendados['NUMERO_CHAMADO'] + \
+            '](https://rioquente.topdesk.net/tas/secure/incident?action=lookup&lookup=naam&lookupValue=' + \
+            df_chamados_agendados['NUMERO_CHAMADO'] + ')'
+
+        # Abreviar nomes de operadores
+        df_chamados_agendados['OPERADOR'] = df_chamados_agendados['OPERADOR'].apply(lambda x: x.split(
+        )[0] + ' ' + x.split()[-1] if x != 'TI - Service Desk' and x != 'TI - Field Service' else x)
+
+        # Abreviar nomes dos solicitantes
+        df_chamados_agendados['SOLICITANTE'] = df_chamados_agendados['SOLICITANTE'].apply(
+            lambda x: x.split()[0] + ' ' + x.split()[-1])
+
+        return df_chamados_agendados.dropna(subset=['DATA_AGENDAMENTO'])

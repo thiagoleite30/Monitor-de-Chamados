@@ -7,7 +7,7 @@ ChatKey = Autenticacao_OpenAI()
 class chatgpt:
 
     def __init__(self) -> None:
-        openai.api_key = ChatKey.key
+        openai.api_key = ChatKey.key()
 
     def get_response(self, pergunta, texto):
         resposta = openai.Completion.create(
@@ -17,4 +17,4 @@ class chatgpt:
             n=1,
             stop=None
         )
-        return resposta
+        return resposta['choices'][0]['text'] # type: ignore
